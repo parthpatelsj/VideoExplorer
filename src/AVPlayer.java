@@ -25,6 +25,9 @@ public class AVPlayer {
 
 
 	public void initialize(String[] args) throws InterruptedException{
+	    //Timer
+	    final long startTime = System.currentTimeMillis();
+
 		int width = 352;
 		int height = 288;
 
@@ -64,6 +67,10 @@ public class AVPlayer {
 		frame.pack();
 		frame.setVisible(true);
 
+		/* Timer */
+        final long endTime = System.currentTimeMillis();
+        System.out.println("Total Execution Time: " + (endTime - startTime));
+
 
 		try {
 			File file = new File(args[0]);
@@ -98,7 +105,7 @@ public class AVPlayer {
 						ind++;
 					}
 				}
-				Thread.sleep(37);
+				Thread.sleep((long) 1000 / 24);
 				frame.repaint();
 			}
 
@@ -123,7 +130,12 @@ public class AVPlayer {
 		// initializes the playSound Object
 		PlaySound playSound = new PlaySound(inputStream);
 
-		// plays the sound
+        try {
+            Thread.sleep(4000);
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+        // plays the sound
 		try {
 			playSound.play();
 		} catch (PlayWaveException e) {
@@ -150,8 +162,15 @@ public class AVPlayer {
 				}
 			}
 		};
+
+		Thread playAudio = new Thread() {
+		    @Override
+            public void run() {
+                ren.playWAV(args[1]);
+            }
+        };
 		playVideo.start();
-		ren.playWAV(args[1]);
+		playAudio.start();
 	}
 
 }
