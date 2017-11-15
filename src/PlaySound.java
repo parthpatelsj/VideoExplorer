@@ -13,70 +13,85 @@ import javax.sound.sampled.UnsupportedAudioFileException;
 import javax.sound.sampled.DataLine.Info;
 
 /**
- * 
  * <Replace this with a short description of the class.>
- * 
+ *
  * @author Giulio
  */
-public class PlaySound {
+public class PlaySound implements Runnable {
 
     private InputStream waveStream;
-
+    private AudioFormat audioFormat;
+    private SourceDataLine dataLine;
     private final int EXTERNAL_BUFFER_SIZE = 524288; // 128Kb
 
     /**
      * CONSTRUCTOR
      */
     public PlaySound(InputStream waveStream) {
-	//this.waveStream = waveStream;
-	this.waveStream = new BufferedInputStream(waveStream);
+        //this.waveStream = waveStream;
+        this.waveStream = new BufferedInputStream(waveStream);
     }
 
-	public void play() throws PlayWaveException {
+    public void run() {
+        try {
+            this.play();
+        } catch (PlayWaveException e) {
+            e.printStackTrace();
+            return;
+        }
+    }
 
-	AudioInputStream audioInputStream = null;
-	try {
-	    audioInputStream = AudioSystem.getAudioInputStream(this.waveStream);
-	} catch (UnsupportedAudioFileException e1) {
-	    throw new PlayWaveException(e1);
-	} catch (IOException e1) {
-	    throw new PlayWaveException(e1);
-	}
+    public void play() throws PlayWaveException {
+        AudioInputStream audioInputStream = null;
+        try {
+            audioInputStream = AudioSystem.getAudioInputStream(this.waveStream);
+        } catch (UnsupportedAudioFileException e1) {
+            throw new PlayWaveException(e1);
+        } catch (IOException e1) {
+            throw new PlayWaveException(e1);
+        }
 
-	// Obtain the information about the AudioInputStream
-	AudioFormat audioFormat = audioInputStream.getFormat();
-	Info info = new Info(SourceDataLine.class, audioFormat);
+        // Obtain the information about the AudioInputStream
+        audioFormat = audioInputStream.getFormat();
+        Info info = new Info(SourceDataLine.class, audioFormat);
 
-	// opens the audio channel
-	SourceDataLine dataLine = null;
-	try {
-	    dataLine = (SourceDataLine) AudioSystem.getLine(info);
-	    dataLine.open(audioFormat, this.EXTERNAL_BUFFER_SIZE);
-	} catch (LineUnavailableException e1) {
-	    throw new PlayWaveException(e1);
-	}
+        // opens the audio channel
+        dataLine = null;
+        try {
+            dataLine = (SourceDataLine) AudioSystem.getLine(info);
+            dataLine.open(audioFormat, this.EXTERNAL_BUFFER_SIZE);
+        } catch (LineUnavailableException e1) {
+            throw new PlayWaveException(e1);
+        }
 
-	// Starts the music :P
-	dataLine.start();
+        // Starts the music :P
+        dataLine.start();
 
-	int readBytes = 0;
-	byte[] audioBuffer = new byte[this.EXTERNAL_BUFFER_SIZE];
+        int readBytes = 0;
+        byte[] audioBuffer = new byte[this.EXTERNAL_BUFFER_SIZE];
 
-	try {
-	    while (readBytes != -1) {
-		readBytes = audioInputStream.read(audioBuffer, 0,
-			audioBuffer.length);
-		if (readBytes >= 0){
-		    dataLine.write(audioBuffer, 0, readBytes);
-		}
-	    }
-	} catch (IOException e1) {
-	    throw new PlayWaveException(e1);
-	} finally {
-	    // plays what's left and and closes the audioChannel
-	    dataLine.drain();
-	    dataLine.close();
-	}
+        try {
+            while (readBytes != -1) {
+                readBytes = audioInputStream.read(audioBuffer, 0,
+                        audioBuffer.length);
+                if (readBytes >= 0) {
+                    dataLine.write(audioBuffer, 0, readBytes);
+                }
+            }
+        } catch (IOException e1) {
+            throw new PlayWaveException(e1);
+        } finally {
+            // plays what's left and and closes the audioChannel
+            dataLine.drain();
+            dataLine.close();
+        }
+    }
 
+    public long whatPosition() {
+        return dataLine.getLongFramePosition();
+    }
+
+    public float getSampleRate() {
+        return audioFormat.getFrameRate();
     }
 }
