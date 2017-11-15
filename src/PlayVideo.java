@@ -93,31 +93,34 @@ public class PlayVideo implements Runnable{
             bytes = new byte[(int) len];
 
             //Calculate the # of audio samples per frame
-            double audioSamplePerFrame = playSound.getSampleRate()/fps;
+            double audioSamplePerFrame = playSound.frameRate()/fps;
 
 
             /* In the beginning, need to calculate if video or audio is ahead, and recallibrate it */
 
-            /* If video frame  is less than (sound frame / spf) then make video frames catch up*/
-            while (frameNum < Math.round(playSound.whatPosition()/audioSamplePerFrame)) {
+            //If video frame  is less than (sound frame / spf) then make video frames catch up
+            while (frameNum < Math.round(playSound.position()/audioSamplePerFrame)) {
                 readBytes();
                 frame.repaint();
             }
 
-            /* If video frame ahead of (sound frame/spf), do nothing */
-            //video ahead of audio
-            while( frameNum > Math.round(playSound.whatPosition()/audioSamplePerFrame)) {
+            //If video frame ahead of (sound frame/spf), do nothing
+            while( frameNum > Math.round(playSound.position()/audioSamplePerFrame)) {
             }
+
+
+
+            /* Begin video loop from most recent synced frame */
 
             for(int i = (int)frameNum; i < frameCount; i++) {
 
-                /* If video frame ahead of (sound frame/spf), do nothing */
-                while(frameNum > Math.round(playSound.whatPosition()/audioSamplePerFrame)) {
+                ///If video frame ahead of (sound frame/spf), do nothing
+                while(frameNum > Math.round(playSound.position()/audioSamplePerFrame)) {
 
                 }
 
-                /* If video frame is less than (sound frame/spf) make video frame catch up */
-                while(frameNum < Math.round(playSound.whatPosition()/audioSamplePerFrame)) {
+                //If video frame is less than (sound frame/spf) make video frame catch up
+                while(frameNum < Math.round(playSound.position()/audioSamplePerFrame)) {
                     readBytes();
                     frame.repaint();
                 }

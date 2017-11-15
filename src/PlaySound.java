@@ -87,11 +87,11 @@ public class PlaySound implements Runnable {
         }
     }
 
-    public long whatPosition() {
+    public long position() {
         return dataLine.getLongFramePosition();
     }
 
-    public float getSampleRate() {
+    public float frameRate() {
         return audioFormat.getFrameRate();
     }
 }
