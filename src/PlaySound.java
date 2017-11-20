@@ -21,8 +21,10 @@ public class PlaySound implements Runnable {
 
     private InputStream waveStream;
     private AudioFormat audioFormat;
-    private SourceDataLine dataLine;
+    public SourceDataLine dataLine;
     private final int EXTERNAL_BUFFER_SIZE = 524288; // 128Kb
+    private boolean isAudioPlaying = true;
+    private boolean isAudioStopped = false;
 
     /**
      * CONSTRUCTOR
@@ -69,11 +71,22 @@ public class PlaySound implements Runnable {
 
         int readBytes = 0;
         byte[] audioBuffer = new byte[this.EXTERNAL_BUFFER_SIZE];
+        int x = 1;
 
         try {
             while (readBytes != -1) {
+                System.out.println("Reached start");
+//            	if(isAudioPlaying)
                 readBytes = audioInputStream.read(audioBuffer, 0,
                         audioBuffer.length);
+                if(isAudioStopped)
+                    break;
+                while(!isAudioPlaying) {
+                    System.out.println("Reached in loop");
+                }
+
+                System.out.println("Reached");
+
                 if (readBytes >= 0) {
                     dataLine.write(audioBuffer, 0, readBytes);
                 }
@@ -93,5 +106,19 @@ public class PlaySound implements Runnable {
 
     public float frameRate() {
         return audioFormat.getFrameRate();
+    }
+
+    public void pauseSound() {
+        isAudioPlaying = false;
+        dataLine.stop();
+    }
+
+    public void resumeSound() {
+        isAudioPlaying = true;
+        dataLine.start();
+    }
+
+    public void stopSound() {
+        isAudioStopped = true;
     }
 }

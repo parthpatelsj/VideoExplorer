@@ -26,9 +26,9 @@ public class AVPlayer {
 		}
 
 		PlaySound playSound = new PlaySound(inputStream);
-		PlayVideo playVideo = new PlayVideo(videoFile, audioFile, playSound);
-
 		Thread soundThread = new Thread(playSound);
+		PlayVideo playVideo = new PlayVideo(videoFile, audioFile, playSound, soundThread);
+
 		Thread videoThread = new Thread(playVideo);
 		soundThread.start();
 		videoThread.start();

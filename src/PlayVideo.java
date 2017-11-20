@@ -1,4 +1,8 @@
-import java.awt.*;
+import java.awt.GridBagConstraints;
+import java.awt.GridBagLayout;
+import java.awt.Insets;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.FileInputStream;
@@ -6,8 +10,10 @@ import java.io.IOException;
 import java.io.InputStream;
 
 import javax.swing.ImageIcon;
+import javax.swing.JButton;
 import javax.swing.JFrame;
 import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
 public class PlayVideo implements Runnable{
@@ -27,6 +33,10 @@ public class PlayVideo implements Runnable{
     private int height = 288;
     private final double fps = 20; //Frames per second
     private InputStream is;
+    Thread soundThread;
+
+    static private boolean isVideoPlaying = true;
+    static private boolean isVideoStopped = false;
 
 
     @Override
@@ -36,10 +46,11 @@ public class PlayVideo implements Runnable{
 
 
     /* Constructor */
-    public PlayVideo(String videoFile, String audioFile, PlaySound pSound) {
+    public PlayVideo(String videoFile, String audioFile, PlaySound pSound, Thread soundThread) {
         this.videoFile = videoFile;
         this.audioFile = audioFile;
         this.playSound = pSound;
+        this.soundThread = soundThread;
     }
 
     private void play() {
@@ -66,6 +77,54 @@ public class PlayVideo implements Runnable{
             lbText2.setHorizontalAlignment(SwingConstants.LEFT);
             lbIm1 = new JLabel(new ImageIcon(img));
 
+            JButton playButton = new JButton();
+            JButton stopButton = new JButton();
+            JButton pauseButton = new JButton();
+
+            playButton.addActionListener(new ActionListener() {
+
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    // TODO Auto-generated method stub
+                    isVideoPlaying = true;
+//					playSound.resumeSound();
+                    soundThread.resume();
+                    playSound.dataLine.start();
+                }
+            });
+
+            pauseButton.addActionListener(new ActionListener() {
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    // TODO Auto-generated method stub
+                    isVideoPlaying = false;
+//            		playSound.pauseSound();
+                    soundThread.suspend();
+                    playSound.dataLine.stop();
+                }
+            });
+
+            stopButton.addActionListener(new ActionListener() {
+
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    // TODO Auto-generated method stub
+                    isVideoStopped = false;
+                    playSound.stopSound();
+                    playSound.dataLine.stop();
+                }
+            });
+
+
+
+            playButton.setText("Play");
+            pauseButton.setText("Pause");
+            stopButton.setText("Stop");
+            JPanel panel = new JPanel();
+            panel.add(playButton);
+            panel.add(pauseButton);
+            panel.add(stopButton);
+
             GridBagConstraints c = new GridBagConstraints();
             c.fill = GridBagConstraints.HORIZONTAL;
             c.anchor = GridBagConstraints.CENTER;
@@ -73,7 +132,6 @@ public class PlayVideo implements Runnable{
             c.gridx = 0;
             c.gridy = 0;
             frame.getContentPane().add(lbText1, c);
-
             c.fill = GridBagConstraints.HORIZONTAL;
             c.anchor = GridBagConstraints.CENTER;
             c.weightx = 0.5;
@@ -84,6 +142,19 @@ public class PlayVideo implements Runnable{
             c.fill = GridBagConstraints.HORIZONTAL;
             c.gridx = 0;
             c.gridy = 2;
+            frame.getContentPane().add(panel, c);
+
+            c.fill = GridBagConstraints.HORIZONTAL;
+//            c.anchor = GridBagConstraints.CENTER;
+            //c.weightx = 0.25;
+//            c.insets = insets;
+            c.gridx = 2;
+            c.gridy = 2;
+            // frame.getContentPane().add(stopButton, c);
+
+            c.fill = GridBagConstraints.HORIZONTAL;
+            c.gridx = 0;
+            c.gridy = 3;
             frame.getContentPane().add(lbIm1, c);
 
             frame.pack();
@@ -113,10 +184,13 @@ public class PlayVideo implements Runnable{
             /* Begin video loop from most recent synced frame */
 
             for(int i = (int)frameNum; i < frameCount; i++) {
-
+                if(isVideoStopped) {
+                    img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+                    frame.repaint();
+                    break;
+                }
                 ///If video frame ahead of (sound frame/spf), do nothing
-                while(frameNum > Math.round(playSound.position()/audioSamplePerFrame)) {
-
+                while(frameNum > Math.round(playSound.position()/audioSamplePerFrame) || !isVideoPlaying) {
                 }
 
                 //If video frame is less than (sound frame/spf) make video frame catch up
@@ -127,7 +201,7 @@ public class PlayVideo implements Runnable{
 
                 readBytes();
                 frame.repaint();
-                System.out.println("frame Count: " + frameNum);
+                // System.out.println("frame Count: " + frameNum);
             }
 
         } catch (IOException e) {
