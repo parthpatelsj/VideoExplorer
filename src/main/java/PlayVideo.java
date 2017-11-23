@@ -1,14 +1,14 @@
-import java.awt.GridBagConstraints;
-import java.awt.GridBagLayout;
-import java.awt.Insets;
+
+import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.awt.image.BufferedImage;
-import java.io.File;
-import java.io.FileInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.awt.image.ColorModel;
+import java.awt.image.WritableRaster;
+import java.io.*;
+import java.util.ArrayList;
 
+import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -16,11 +16,14 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
+
 public class PlayVideo implements Runnable{
 
     JFrame frame;
     JLabel lbIm1;
+    JLabel tapestry;
     BufferedImage img;
+    BufferedImage tapestryImg;
 
     private byte[] bytes;
 
@@ -32,6 +35,7 @@ public class PlayVideo implements Runnable{
     private int width = 352;
     private int height = 288;
     private final double fps = 20; //Frames per second
+    private final int tapestryFrameCount = 10;
     private InputStream is;
     Thread soundThread;
 
@@ -53,11 +57,29 @@ public class PlayVideo implements Runnable{
         this.soundThread = soundThread;
     }
 
+    public void renderTapestry() {
+
+        img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        tapestryImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+
+        File file = new File(videoFile);
+        try {
+            is = new FileInputStream(file);
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        long len = width*height*3;
+        long frameCount = file.length()/len;
+        bytes = new byte[(int) len];
+        loadTapestry(frameCount);
+    }
+
     private void play() {
 
         frameNum = 0;
 
         img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        tapestryImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
         try {
             File file = new File(videoFile);
@@ -76,6 +98,7 @@ public class PlayVideo implements Runnable{
             JLabel lbText2 = new JLabel("Audio: " + audioFile);
             lbText2.setHorizontalAlignment(SwingConstants.LEFT);
             lbIm1 = new JLabel(new ImageIcon(img));
+            tapestry = new JLabel(new ImageIcon(tapestryImg));
 
             JButton playButton = new JButton();
             JButton stopButton = new JButton();
@@ -157,6 +180,13 @@ public class PlayVideo implements Runnable{
             c.gridy = 3;
             frame.getContentPane().add(lbIm1, c);
 
+            c.fill = GridBagConstraints.HORIZONTAL;
+            c.ipady = 144;      //make this component tall
+            c.weightx = 0.0;
+            c.gridx = 0;
+            c.gridy = 4;
+            frame.getContentPane().add(tapestry, c);
+
             frame.pack();
             frame.setVisible(true);
 
@@ -184,6 +214,7 @@ public class PlayVideo implements Runnable{
             /* Begin video loop from most recent synced frame */
 
             for(int i = (int)frameNum; i < frameCount; i++) {
+
                 if(isVideoStopped) {
                     img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
                     frame.repaint();
@@ -209,6 +240,58 @@ public class PlayVideo implements Runnable{
         }
     }
 
+
+    private void loadTapestry(long frameCount) {
+        ArrayList<BufferedImage> selectedFrames = new ArrayList<BufferedImage>();
+
+
+        //Copying every 600th frame
+        for (int i = (int) frameNum; i < frameCount; i++) {
+            readBytes();
+            if (i % 600 == 0) {
+                selectedFrames.add(copyImage(img));
+                System.out.println("Copied frame #: " + i);
+            }
+        }
+
+        BufferedImage joinedFrames = joinFrames(selectedFrames);
+
+
+        try {
+            // retrieve image
+            File outputfile = new File("saved.png");
+            ImageIO.write(joinedFrames, "png", outputfile);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private BufferedImage joinFrames(ArrayList<BufferedImage> selectedFrames) {
+        int offset = 0;
+
+        //create a new buffer and draw two image into the new image
+        BufferedImage newImage = new BufferedImage(width*10,height, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = newImage.createGraphics();
+
+        Color oldColor = g2.getColor();
+        //fill background
+        g2.setPaint(Color.WHITE);
+        g2.fillRect(0, 0, width*10, height);
+
+        g2.setColor(oldColor);
+
+        g2.drawImage(selectedFrames.get(0), null, 0, 0);
+        //draw images
+        for(int i=1; i<10; i++) {
+            g2.drawImage(selectedFrames.get(i), null, width*i + offset, 0);
+        }
+        g2.dispose();
+        return newImage;
+
+
+
+    }
 
     private void readBytes() {
         frameNum++;
@@ -237,10 +320,21 @@ public class PlayVideo implements Runnable{
                     //int pix = ((a << 24) + (r << 16) + (g << 8) + b);
                     img.setRGB(x, y, pix);
                     ind++;
+
                 }
             }
         } catch (IOException e) {
             e.printStackTrace();
         }
+//        System.out.println(frameNum);
+
+    }
+
+    private static BufferedImage copyImage(BufferedImage source) {
+        ColorModel cm = source.getColorModel();
+        boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
+        WritableRaster raster = source.copyData(null);
+        return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
     }
 }
+
