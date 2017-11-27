@@ -33,6 +33,7 @@ public class AVPlayer {
 			PlaySound playSound = new PlaySound(inputStream);
 			Thread soundThread = new Thread(playSound);
 			PlayVideo playVideo = new PlayVideo(videoFile, audioFile, playSound, soundThread);
+			playVideo.renderTapestry();
 
 			Thread videoThread = new Thread(playVideo);
 			soundThread.start();

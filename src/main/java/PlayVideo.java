@@ -2,6 +2,8 @@
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
+import java.awt.event.MouseEvent;
+import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.WritableRaster;
@@ -45,6 +47,7 @@ public class PlayVideo implements Runnable{
 
     @Override
     public void run() {
+        //renderTapestry();
         play();
     }
 
@@ -60,7 +63,7 @@ public class PlayVideo implements Runnable{
     public void renderTapestry() {
 
         img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        tapestryImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        tapestryImg = new BufferedImage((width*10)/2, height/2, BufferedImage.TYPE_INT_RGB);
 
         File file = new File(videoFile);
         try {
@@ -76,10 +79,11 @@ public class PlayVideo implements Runnable{
 
     private void play() {
 
+
         frameNum = 0;
 
         img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        tapestryImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        //tapestryImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
         try {
             File file = new File(videoFile);
@@ -99,6 +103,30 @@ public class PlayVideo implements Runnable{
             lbText2.setHorizontalAlignment(SwingConstants.LEFT);
             lbIm1 = new JLabel(new ImageIcon(img));
             tapestry = new JLabel(new ImageIcon(tapestryImg));
+
+            tapestry.addMouseListener(new MouseListener() {
+                public void mouseClicked(MouseEvent e) {
+                    int x = e.getX();
+                    int y = e.getY();
+                    System.out.println(x+","+y);
+                }
+
+                public void mousePressed(MouseEvent e) {
+
+                }
+
+                public void mouseReleased(MouseEvent e) {
+
+                }
+
+                public void mouseEntered(MouseEvent e) {
+
+                }
+
+                public void mouseExited(MouseEvent e) {
+
+                }
+            });
 
             JButton playButton = new JButton();
             JButton stopButton = new JButton();
@@ -244,7 +272,6 @@ public class PlayVideo implements Runnable{
     private void loadTapestry(long frameCount) {
         ArrayList<BufferedImage> selectedFrames = new ArrayList<BufferedImage>();
 
-
         //Copying every 600th frame
         for (int i = (int) frameNum; i < frameCount; i++) {
             readBytes();
@@ -256,6 +283,12 @@ public class PlayVideo implements Runnable{
 
         BufferedImage joinedFrames = joinFrames(selectedFrames);
 
+        BufferedImage scaledTapestry = new BufferedImage((width*10)/2, height/2, BufferedImage.TYPE_INT_RGB);
+        Graphics g = scaledTapestry.createGraphics();
+        g.drawImage(joinedFrames, 0, 0, (width*10)/2, height/2, null);
+        g.dispose();
+
+        tapestryImg = scaledTapestry;
 
         try {
             // retrieve image
@@ -288,8 +321,6 @@ public class PlayVideo implements Runnable{
         }
         g2.dispose();
         return newImage;
-
-
 
     }
 
