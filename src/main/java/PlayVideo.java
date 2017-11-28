@@ -30,7 +30,6 @@ public class PlayVideo implements Runnable{
     BufferedImage tapestryImg;
 
     private byte[] bytes;
-    private byte[] allBytes;
 
     private PlaySound playSound;
     private String videoFile;
@@ -113,20 +112,23 @@ public class PlayVideo implements Runnable{
                     int y = e.getY();
                     System.out.println(x+","+y);
                     int seekPos=0;
-                    if (x < 88) { seekPos= width*height*3*20*(600*0); } else
-                        if (x < 88*2) { seekPos = width*height*3*(600*1); } else
-                            if (x < 88*3) { seekPos = width*height*3*(600*2); } else
-                                if (x < 88*4) { seekPos = width*height*3*(600*3); } else
-                                if (x < 88*5) { seekPos = width*height*3*(600*4); } else
-                                if (x < 88*6) { seekPos = width*height*3*(600*5); } else
-                                if (x < 88*7) { seekPos = width*height*3*(600*6); } else
-                                if (x < 88*8) { seekPos = width*height*3*(600*7); } else
-                                if (x < 88*9) { seekPos = width*height*3*(600*8); } else
-                                if (x < 88*10) { seekPos = width*height*3*(600*9); } else
+                    if (x < 88) { seekPos= width*height*3*20*(600*0); frameNum = 600*0;  } else
+                        if (x < 88*2) { seekPos = width*height*3*(600*1); frameNum = 600*1; } else
+                            if (x < 88*3) { seekPos = width*height*3*(600*2); frameNum = 600*2;} else
+                                if (x < 88*4) { seekPos = width*height*3*(600*3); frameNum = 600*3;} else
+                                if (x < 88*5) { seekPos = width*height*3*(600*4); frameNum = 600*4;} else
+                                if (x < 88*6) { seekPos = width*height*3*(600*5); frameNum = 600*5;} else
+                                if (x < 88*7) { seekPos = width*height*3*(600*6); frameNum = 600*6;} else
+                                if (x < 88*8) { seekPos = width*height*3*(600*7); frameNum = 600*7;} else
+                                if (x < 88*9) { seekPos = width*height*3*(600*8); frameNum = 600*8;} else
+                                if (x < 88*10) { seekPos = width*height*3*(600*9); frameNum = 600*9;} else
                     System.out.println(seekPos);
+
+
+                    double audiofps = playSound.frameRate()/fps;
                     try {
                         original_video.seek(seekPos);
-                        readBytes();
+                        playSound.setSound((int)audiofps*(int)frameNum);
                         frame.repaint();
                     } catch (IOException e1) {
                         e1.printStackTrace();
