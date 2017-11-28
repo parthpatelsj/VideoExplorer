@@ -1,4 +1,6 @@
 
+import sun.misc.IOUtils;
+
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -28,6 +30,7 @@ public class PlayVideo implements Runnable{
     BufferedImage tapestryImg;
 
     private byte[] bytes;
+    private byte[] allBytes;
 
     private PlaySound playSound;
     private String videoFile;
@@ -38,7 +41,10 @@ public class PlayVideo implements Runnable{
     private int height = 288;
     private final double fps = 20; //Frames per second
     private final int tapestryFrameCount = 10;
+    ArrayList<Integer> selectedFrameNums = new ArrayList<Integer>();
     private InputStream is;
+    private BufferedInputStream buffered_is;
+    RandomAccessFile original_video;
     Thread soundThread;
 
     static private boolean isVideoPlaying = true;
@@ -68,6 +74,8 @@ public class PlayVideo implements Runnable{
         File file = new File(videoFile);
         try {
             is = new FileInputStream(file);
+            buffered_is = new BufferedInputStream(new FileInputStream(file));
+            original_video = new RandomAccessFile(videoFile, "rw");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
         }
@@ -88,6 +96,8 @@ public class PlayVideo implements Runnable{
         try {
             File file = new File(videoFile);
             is = new FileInputStream(file);
+            buffered_is = new BufferedInputStream(new FileInputStream(file));
+            original_video = new RandomAccessFile(videoFile, "rw");
 
             long len = width*height*3;
             long frameCount = file.length()/len;
@@ -109,6 +119,26 @@ public class PlayVideo implements Runnable{
                     int x = e.getX();
                     int y = e.getY();
                     System.out.println(x+","+y);
+                    int seekPos=0;
+                    if (x < 176) { seekPos= width*height*3*20*(600*0); } else
+                        if (x < 176*2) { seekPos = width*height*3*(600*1); } else
+                            if (x < 176*3) { seekPos = width*height*3*(600*2); } else
+                                if (x < 176*4) { seekPos = width*height*3*(600*3); } else
+                                if (x < 176*5) { seekPos = width*height*3*(600*4); } else
+                                if (x < 176*6) { seekPos = width*height*3*(600*5); } else
+                                if (x < 176*7) { seekPos = width*height*3*(600*6); } else
+                                if (x < 176*8) { seekPos = width*height*3*(600*7); } else
+                                if (x < 176*9) { seekPos = width*height*3*(600*8); } else
+                                if (x < 176*10) { seekPos = width*height*3*(600*9); } else
+                    System.out.println(seekPos);
+                    try {
+                        original_video.seek(seekPos);
+                        readBytes();
+                        frame.repaint();
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+
                 }
 
                 public void mousePressed(MouseEvent e) {
@@ -277,6 +307,7 @@ public class PlayVideo implements Runnable{
             readBytes();
             if (i % 600 == 0) {
                 selectedFrames.add(copyImage(img));
+                selectedFrameNums.add(i);
                 System.out.println("Copied frame #: " + i);
             }
         }
@@ -290,6 +321,8 @@ public class PlayVideo implements Runnable{
 
         tapestryImg = scaledTapestry;
 
+
+        //Saving tapestry image to local destination
         try {
             // retrieve image
             File outputfile = new File("saved.png");
@@ -298,6 +331,23 @@ public class PlayVideo implements Runnable{
         } catch (IOException e) {
             e.printStackTrace();
         }
+
+
+        //Saving frame selection data
+        PrintStream ps = null;
+
+        try {
+            ps = new PrintStream("frames.txt");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        for(int i=0; i < selectedFrameNums.size(); i++) {
+            ps.println(selectedFrameNums.get(i));
+        }
+
+
+
     }
 
     private BufferedImage joinFrames(ArrayList<BufferedImage> selectedFrames) {
@@ -332,7 +382,7 @@ public class PlayVideo implements Runnable{
             int numRead = 0;
 
             while (offset < bytes.length &&
-                    (numRead = is.read(bytes, offset, bytes.length - offset)) >= 0) {
+                    (numRead = original_video.read(bytes, offset, bytes.length - offset)) >= 0) {
                 offset += numRead;
             }
 
@@ -367,5 +417,7 @@ public class PlayVideo implements Runnable{
         WritableRaster raster = source.copyData(null);
         return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
     }
+
+
 }
 
