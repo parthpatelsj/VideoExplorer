@@ -112,7 +112,7 @@ public class PlayVideo implements Runnable{
                     int y = e.getY();
                     System.out.println(x+","+y);
                     int seekPos=0;
-                    if (x < 88) { seekPos= width*height*3*20*(600*0); frameNum = 600*0;  } else
+                    if (x < 88) { seekPos= width*height*3*(600*0); frameNum = 600*0;  } else
                         if (x < 88*2) { seekPos = width*height*3*(600*1); frameNum = 600*1; } else
                             if (x < 88*3) { seekPos = width*height*3*(600*2); frameNum = 600*2;} else
                                 if (x < 88*4) { seekPos = width*height*3*(600*3); frameNum = 600*3;} else
@@ -128,7 +128,7 @@ public class PlayVideo implements Runnable{
                     double audiofps = playSound.frameRate()/fps;
                     try {
                         original_video.seek(seekPos);
-                        playSound.setSound((int)audiofps*(int)frameNum);
+                        playSound.setSound((int)(audiofps*frameNum));
                         frame.repaint();
                     } catch (IOException e1) {
                         e1.printStackTrace();
@@ -163,9 +163,9 @@ public class PlayVideo implements Runnable{
                 public void actionPerformed(ActionEvent e) {
                     // TODO Auto-generated method stub
                     isVideoPlaying = true;
-//					playSound.resumeSound();
-                    soundThread.resume();
-                    playSound.dataLine.start();
+					playSound.resumeSound();
+//                    soundThread.resume();
+//                    playSound.dataLine.start();
                 }
             });
 
@@ -174,9 +174,9 @@ public class PlayVideo implements Runnable{
                 public void actionPerformed(ActionEvent e) {
                     // TODO Auto-generated method stub
                     isVideoPlaying = false;
-//            		playSound.pauseSound();
-                    soundThread.suspend();
-                    playSound.dataLine.stop();
+            		playSound.pauseSound();
+//                    soundThread.suspend();
+//                    playSound.dataLine.stop();
                 }
             });
 
@@ -187,7 +187,7 @@ public class PlayVideo implements Runnable{
                     // TODO Auto-generated method stub
                     isVideoStopped = false;
                     playSound.stopSound();
-                    playSound.dataLine.stop();
+//                    playSound.dataLine.stop();
                 }
             });
 
@@ -254,12 +254,14 @@ public class PlayVideo implements Runnable{
 
             //If video frame  is less than (sound frame / spf) then make video frames catch up
             while (frameNum < Math.round(playSound.position()/audioSamplePerFrame)) {
+//                System.out.println("Video: " + frameNum + ", Audio: " + Math.round(playSound.position()/audioSamplePerFrame));
                 readBytes();
                 frame.repaint();
             }
 
             //If video frame ahead of (sound frame/spf), do nothing
             while( frameNum > Math.round(playSound.position()/audioSamplePerFrame)) {
+//                System.out.println("Video: " + frameNum + ", Audio: " + Math.round(playSound.position()/audioSamplePerFrame));
             }
 
 
@@ -275,10 +277,13 @@ public class PlayVideo implements Runnable{
                 }
                 ///If video frame ahead of (sound frame/spf), do nothing
                 while(frameNum > Math.round(playSound.position()/audioSamplePerFrame) || !isVideoPlaying) {
+//                    System.out.println("Video: " + frameNum + ", Audio: " + Math.round(playSound.position()/audioSamplePerFrame));
+
                 }
 
                 //If video frame is less than (sound frame/spf) make video frame catch up
                 while(frameNum < Math.round(playSound.position()/audioSamplePerFrame)) {
+//                    System.out.println("Video: " + frameNum + ", Audio: " + Math.round(playSound.position()/audioSamplePerFrame));
                     readBytes();
                     frame.repaint();
                 }
@@ -406,6 +411,8 @@ public class PlayVideo implements Runnable{
 //        System.out.println(frameNum);
 
     }
+
+
 
     private static BufferedImage copyImage(BufferedImage source) {
         ColorModel cm = source.getColorModel();
