@@ -42,8 +42,6 @@ public class PlayVideo implements Runnable{
     private final double fps = 20; //Frames per second
     private final int tapestryFrameCount = 10;
     ArrayList<Integer> selectedFrameNums = new ArrayList<Integer>();
-    private InputStream is;
-    private BufferedInputStream buffered_is;
     RandomAccessFile original_video;
     Thread soundThread;
 
@@ -53,7 +51,6 @@ public class PlayVideo implements Runnable{
 
     @Override
     public void run() {
-        //renderTapestry();
         play();
     }
 
@@ -69,12 +66,10 @@ public class PlayVideo implements Runnable{
     public void renderTapestry() {
 
         img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        tapestryImg = new BufferedImage((width*10)/2, height/2, BufferedImage.TYPE_INT_RGB);
+        tapestryImg = new BufferedImage((width*10)/4, height/4, BufferedImage.TYPE_INT_RGB);
 
         File file = new File(videoFile);
         try {
-            is = new FileInputStream(file);
-            buffered_is = new BufferedInputStream(new FileInputStream(file));
             original_video = new RandomAccessFile(videoFile, "rw");
         } catch (FileNotFoundException e) {
             e.printStackTrace();
@@ -95,8 +90,6 @@ public class PlayVideo implements Runnable{
 
         try {
             File file = new File(videoFile);
-            is = new FileInputStream(file);
-            buffered_is = new BufferedInputStream(new FileInputStream(file));
             original_video = new RandomAccessFile(videoFile, "rw");
 
             long len = width*height*3;
@@ -120,16 +113,16 @@ public class PlayVideo implements Runnable{
                     int y = e.getY();
                     System.out.println(x+","+y);
                     int seekPos=0;
-                    if (x < 176) { seekPos= width*height*3*20*(600*0); } else
-                        if (x < 176*2) { seekPos = width*height*3*(600*1); } else
-                            if (x < 176*3) { seekPos = width*height*3*(600*2); } else
-                                if (x < 176*4) { seekPos = width*height*3*(600*3); } else
-                                if (x < 176*5) { seekPos = width*height*3*(600*4); } else
-                                if (x < 176*6) { seekPos = width*height*3*(600*5); } else
-                                if (x < 176*7) { seekPos = width*height*3*(600*6); } else
-                                if (x < 176*8) { seekPos = width*height*3*(600*7); } else
-                                if (x < 176*9) { seekPos = width*height*3*(600*8); } else
-                                if (x < 176*10) { seekPos = width*height*3*(600*9); } else
+                    if (x < 88) { seekPos= width*height*3*20*(600*0); } else
+                        if (x < 88*2) { seekPos = width*height*3*(600*1); } else
+                            if (x < 88*3) { seekPos = width*height*3*(600*2); } else
+                                if (x < 88*4) { seekPos = width*height*3*(600*3); } else
+                                if (x < 88*5) { seekPos = width*height*3*(600*4); } else
+                                if (x < 88*6) { seekPos = width*height*3*(600*5); } else
+                                if (x < 88*7) { seekPos = width*height*3*(600*6); } else
+                                if (x < 88*8) { seekPos = width*height*3*(600*7); } else
+                                if (x < 88*9) { seekPos = width*height*3*(600*8); } else
+                                if (x < 88*10) { seekPos = width*height*3*(600*9); } else
                     System.out.println(seekPos);
                     try {
                         original_video.seek(seekPos);
@@ -314,9 +307,10 @@ public class PlayVideo implements Runnable{
 
         BufferedImage joinedFrames = joinFrames(selectedFrames);
 
-        BufferedImage scaledTapestry = new BufferedImage((width*10)/2, height/2, BufferedImage.TYPE_INT_RGB);
+        //Scaling the image
+        BufferedImage scaledTapestry = new BufferedImage((width*10)/4, height/4, BufferedImage.TYPE_INT_RGB);
         Graphics g = scaledTapestry.createGraphics();
-        g.drawImage(joinedFrames, 0, 0, (width*10)/2, height/2, null);
+        g.drawImage(joinedFrames, 0, 0, (width*10)/4, height/4, null);
         g.dispose();
 
         tapestryImg = scaledTapestry;
