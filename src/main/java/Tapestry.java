@@ -59,17 +59,76 @@ public class Tapestry {
         long len = width*height*3;
         long frameCount = file.length()/len;
         bytes = new byte[(int) len];
-        loadTapestry(frameCount);
+        createTapestry(frameCount);
 
     }
 
 
+    private void createTapestry(long frameCount) {
+        //Will be using scene change detection (in KeyFrameDetection class)
+        sceneChangeDetection(frameCount);
+
+        //Force interval-ed frames, instead of just taking first 10 produced from keyframeDetection
+        chooseFramesByInterval();
+
+
+        System.out.println("Total options for scene cuts: " + sceneCuts.size());
+        //Going through selected frames, and seeing if they will be loaded into the tapestry
+        for(KeyframeInfo keyframe: sceneCuts) {
+            if(keyframe.inTapestry) {
+                selectedFrames.add(copyImage(keyframe.image));
+                selectedFrameNums.add(keyframe.position);
+            }
+        }
+
+        System.out.println("Total size of tapestry frames = " + selectedFrames.size());
+
+
+        //Join all of the frames into one image
+        BufferedImage joinedFrames = joinFrames(selectedFrames);
+
+        //Scaling the image to fit on the screen
+        BufferedImage scaledTapestry = new BufferedImage((width*10)/4, height/4, BufferedImage.TYPE_INT_RGB);
+        Graphics g = scaledTapestry.createGraphics();
+        g.drawImage(joinedFrames, 0, 0, (width*10)/4, height/4, null);
+        g.dispose();
+
+        tapestryImg = scaledTapestry;
+
+
+        /*DEBUG STUFF */
+        //Saving tapestry image to local destination
+        try {
+            // retrieve image
+            File outputfile = new File("saved.png");
+            ImageIO.write(joinedFrames, "png", outputfile);
+
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+
+
+        //Saving frame selection data
+        PrintStream ps = null;
+
+        try {
+            ps = new PrintStream("frames.txt");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        for(int i=0; i < selectedFrameNums.size(); i++) {
+            ps.println(selectedFrameNums.get(i));
+        }
+
+
+    }
+
     static int counter = 0;
-    private void loadTapestry(long frameCount) {
+    private void sceneChangeDetection(long frameCount) {
         KeyFrameDetection keyFrameDetection = new KeyFrameDetection();
+
         BufferedImage previousImage = null;
-
-
         for(int i = (int) frameNum; i < frameCount; i++) {
             BufferedImage image = null;
             image = readBytesIntoImage(image);
@@ -111,70 +170,27 @@ public class Tapestry {
             }
         });
 
-        //Force interval-ed frames, instead of just taking first 10 produced from keyframeDetection
-        chooseFramesByInterval();
-
-        for(KeyframeInfo keyframe: sceneCuts) {
-            if(keyframe.inTapestry) {
-                selectedFrames.add(copyImage(keyframe.image));
-                selectedFrameNums.add(keyframe.position);
-            }
-        }
-
-        BufferedImage joinedFrames = joinFrames(selectedFrames);
-
-        //Scaling the image
-        BufferedImage scaledTapestry = new BufferedImage((width*10)/4, height/4, BufferedImage.TYPE_INT_RGB);
-        Graphics g = scaledTapestry.createGraphics();
-        g.drawImage(joinedFrames, 0, 0, (width*10)/4, height/4, null);
-        g.dispose();
-
-        tapestryImg = scaledTapestry;
-
-
-        /*DEBUG STUFF */
-        //Saving tapestry image to local destination
-        try {
-            // retrieve image
-            File outputfile = new File("saved.png");
-            ImageIO.write(joinedFrames, "png", outputfile);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-
-        //Saving frame selection data
-        PrintStream ps = null;
-
-        try {
-            ps = new PrintStream("frames.txt");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        for(int i=0; i < selectedFrameNums.size(); i++) {
-            ps.println(selectedFrameNums.get(i));
-        }
-
-
     }
+
 
     /* Need to create a second pass filter that will force our tapestry to at least choose 1 image that best represents every 20 seconds. */
     private void chooseFramesByInterval() {
         //Interval = every (x) seconds, we need to pick a frame to represent in the tapestry
         int interval = (int)(fps*5*60)/tapestryFrameCount;
         for(int i=0; i < tapestryFrameCount; i++) {
-
+            boolean found = false;
             for (KeyframeInfo keyframe : sceneCuts){
                 if (i*interval <= keyframe.position && keyframe.position < (i+1)*interval) {
+                    System.out.println("Frame: " + keyframe.position + " chosen!");
                     keyframe.inTapestry = true;
+                    found = true;
                     break;
                 }
             }
+
+            if(found == false) System.out.println("No frame for interval: " + i);
         }
     }
-
 
 
 
