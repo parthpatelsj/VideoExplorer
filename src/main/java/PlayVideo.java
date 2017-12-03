@@ -25,6 +25,7 @@ class KeyFrameClass{
     BufferedImage image;
     double distance;
     int position;
+    boolean inTapestry = false;
 }
 
 public class PlayVideo implements Runnable{
@@ -47,6 +48,7 @@ public class PlayVideo implements Runnable{
     private final double fps = 20; //Frames per second
     private final int tapestryFrameCount = 10;
     ArrayList<Integer> selectedFrameNums = new ArrayList<Integer>();
+    ArrayList<KeyFrameClass> sceneCuts = new ArrayList<>();
     RandomAccessFile original_video;
     Thread soundThread;
 
@@ -312,8 +314,6 @@ public class PlayVideo implements Runnable{
         KeyFrameDetection keyFrameDetection = new KeyFrameDetection();
         BufferedImage previousImage = null;
         selectedFrameNums = new ArrayList<Integer>();
-
-        ArrayList<KeyFrameClass> sceneCuts = new ArrayList<>();
         //Copying every 600th frame
         for (int i = (int) frameNum; i < frameCount; i++) {
             BufferedImage image = null;
@@ -356,10 +356,21 @@ public class PlayVideo implements Runnable{
             }
         });
 
-        for(int i = 0; i < sceneCuts.size() && i < 10; i++) {
-            selectedFrames.add(copyImage(sceneCuts.get(i).image));
-            selectedFrameNums.add(sceneCuts.get(i).position);
+        //Force interval-ed frames, instead of just taking first 10 produced from keyframeDetection
+        chooseFramesByInterval();
+
+        for(KeyFrameClass keyframe: sceneCuts) {
+            if(keyframe.inTapestry) {
+                selectedFrames.add(copyImage(keyframe.image));
+                selectedFrameNums.add(keyframe.position);
+            }
         }
+//        for(int i = 0; i < sceneCuts.size() && i < 10; i++) {
+//            selectedFrames.add(copyImage(sceneCuts.get(i).image));
+//            selectedFrameNums.add(sceneCuts.get(i).position);
+//        }
+
+
         BufferedImage joinedFrames = joinFrames(selectedFrames);
 
         //Scaling the image
@@ -398,6 +409,25 @@ public class PlayVideo implements Runnable{
 
 
     }
+
+    /* Need to create a second pass filter that will force our tapestry to at least choose 1 image that best represents every 20 seconds. */
+    private void chooseFramesByInterval() {
+        //Interval = every (x) seconds, we need to pick a frame to represent in the tapestry
+        int interval = (int)(fps*5*60)/tapestryFrameCount;
+        for(int i=0; i < tapestryFrameCount; i++) {
+
+            for (KeyFrameClass keyframe : sceneCuts){
+                if (i*interval <= keyframe.position && keyframe.position < (i+1)*interval) {
+                    keyframe.inTapestry = true;
+                    break;
+                }
+            }
+        }
+
+
+    }
+
+
 
     private BufferedImage joinFrames(ArrayList<BufferedImage> selectedFrames) {
         int offset = 0;
