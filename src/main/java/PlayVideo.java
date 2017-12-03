@@ -1,6 +1,4 @@
 
-import sun.misc.IOUtils;
-
 import java.awt.*;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
@@ -11,6 +9,9 @@ import java.awt.image.ColorModel;
 import java.awt.image.WritableRaster;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.PriorityQueue;
 
 import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
@@ -20,6 +21,11 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
+class KeyFrameClass{
+    BufferedImage image;
+    double distance;
+    int position;
+}
 
 public class PlayVideo implements Runnable{
 
@@ -298,20 +304,60 @@ public class PlayVideo implements Runnable{
         }
     }
 
-
+    static int counter = 0;
     private void loadTapestry(long frameCount) {
-        ArrayList<BufferedImage> selectedFrames = new ArrayList<BufferedImage>();
+        ArrayList<BufferedImage> selectedFrames = new ArrayList<>();
+        KeyFrameDetection keyFrameDetection = new KeyFrameDetection();
+        BufferedImage previousImage = null;
+        selectedFrameNums = new ArrayList<Integer>();
 
+        ArrayList<KeyFrameClass> sceneCuts = new ArrayList<>();
         //Copying every 600th frame
         for (int i = (int) frameNum; i < frameCount; i++) {
-            readBytes();
-            if (i % 600 == 0) {
-                selectedFrames.add(copyImage(img));
-                selectedFrameNums.add(i);
-                System.out.println("Copied frame #: " + i);
+            BufferedImage image = null;
+            image = readBytesIntoImage(image);
+            if(i > 0) {
+                boolean isKeyFrame = keyFrameDetection.getKeyFrames(previousImage, image);
+                if(isKeyFrame) {
+                    KeyFrameClass keyFrame = new KeyFrameClass();
+                    keyFrame.image = copyImage(image);
+                    File outputfile = new File(counter + ".jpg");
+                    try {
+                        ImageIO.write(image, "jpg", outputfile);
+                    } catch (IOException e) {
+                        // TODO Auto-generated catch block
+                        e.printStackTrace();
+                    }
+                    counter++;
+                    keyFrame.distance = keyFrameDetection.distance;
+                    keyFrame.position = i;
+                    sceneCuts.add(keyFrame);
+                }
             }
+            previousImage = copyImage(image);
+        }
+        Collections.sort(sceneCuts, new Comparator<KeyFrameClass>() {
+            public int compare(KeyFrameClass class1, KeyFrameClass class2) {
+                if (class1.distance > class2.distance) return -1;
+                else return 1;
+            }
+        });
+
+        if(sceneCuts.size() >= 10) {
+            sceneCuts.subList(0, 10).clear();;
         }
 
+        Collections.sort(sceneCuts, new Comparator<KeyFrameClass>() {
+            public int compare(KeyFrameClass class1, KeyFrameClass class2) {
+                if (class1.position < class2.position) return -1;
+                else return 1;
+            }
+        });
+
+        for(int i = 0; i < sceneCuts.size() && i < 10; i++) {
+            selectedFrames.add(sceneCuts.get(i).image);
+            selectedFrameNums.add(sceneCuts.get(i).position);
+        }
         BufferedImage joinedFrames = joinFrames(selectedFrames);
 
         //Scaling the image
@@ -367,12 +413,49 @@ public class PlayVideo implements Runnable{
 
         g2.drawImage(selectedFrames.get(0), null, 0, 0);
         //draw images
-        for(int i=1; i<10; i++) {
+        for(int i=1; i< selectedFrames.size(); i++) {
             g2.drawImage(selectedFrames.get(i), null, width*i + offset, 0);
         }
         g2.dispose();
         return newImage;
 
+    }
+
+    private BufferedImage readBytesIntoImage(BufferedImage image) {
+        frameNum++;
+        image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
+        try {
+            int offset = 0;
+            int numRead = 0;
+
+            while (offset < bytes.length &&
+                    (numRead = original_video.read(bytes, offset, bytes.length - offset)) >= 0) {
+                offset += numRead;
+            }
+
+            int ind = 0;
+            for (int y = 0; y < height; y++) {
+
+                for (int x = 0; x < width; x++) {
+
+                    byte a = 0;
+                    byte r = bytes[ind];
+                    byte g = bytes[ind + height * width];
+                    byte b = bytes[ind + height * width * 2];
+
+
+                    int pix = 0xff000000 | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
+                    //int pix = ((a << 24) + (r << 16) + (g << 8) + b);
+                    image.setRGB(x, y, pix);
+                    ind++;
+
+                }
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+//        System.out.println(frameNum);
+        return image;
     }
 
     private void readBytes() {
