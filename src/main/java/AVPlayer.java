@@ -8,7 +8,6 @@ import java.io.FileNotFoundException;
 public class AVPlayer {
 
 
-
 	public static void main(final String[] args) {
 		FileInputStream inputStream = null;
 

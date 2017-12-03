@@ -5,15 +5,8 @@ import java.awt.event.ActionListener;
 import java.awt.event.MouseEvent;
 import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
-import java.awt.image.ColorModel;
-import java.awt.image.WritableRaster;
 import java.io.*;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.PriorityQueue;
-
-import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -21,12 +14,6 @@ import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.SwingConstants;
 
-class KeyFrameClass{
-    BufferedImage image;
-    double distance;
-    int position;
-    boolean inTapestry = false;
-}
 
 public class PlayVideo implements Runnable{
 
@@ -46,9 +33,7 @@ public class PlayVideo implements Runnable{
     private int width = 352;
     private int height = 288;
     private final double fps = 20; //Frames per second
-    private final int tapestryFrameCount = 10;
     ArrayList<Integer> selectedFrameNums = new ArrayList<Integer>();
-    ArrayList<KeyFrameClass> sceneCuts = new ArrayList<>();
     RandomAccessFile original_video;
     Thread soundThread;
 
@@ -72,19 +57,13 @@ public class PlayVideo implements Runnable{
 
     public void renderTapestry() {
 
-        img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        tapestryImg = new BufferedImage((width*10)/4, height/4, BufferedImage.TYPE_INT_RGB);
+        Tapestry generateTapestry = new Tapestry(width, height, videoFile);
+        generateTapestry.renderTapestry();
 
-        File file = new File(videoFile);
-        try {
-            original_video = new RandomAccessFile(videoFile, "rw");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-        long len = width*height*3;
-        long frameCount = file.length()/len;
-        bytes = new byte[(int) len];
-        loadTapestry(frameCount);
+        tapestryImg = generateTapestry.tapestryImg;
+        selectedFrameNums = generateTapestry.selectedFrameNums;
+
+
     }
 
     private void play() {
@@ -93,7 +72,6 @@ public class PlayVideo implements Runnable{
         frameNum = 0;
 
         img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
-        //tapestryImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
         try {
             File file = new File(videoFile);
@@ -308,187 +286,6 @@ public class PlayVideo implements Runnable{
         }
     }
 
-    static int counter = 0;
-    private void loadTapestry(long frameCount) {
-        ArrayList<BufferedImage> selectedFrames = new ArrayList<>();
-        KeyFrameDetection keyFrameDetection = new KeyFrameDetection();
-        BufferedImage previousImage = null;
-        selectedFrameNums = new ArrayList<Integer>();
-        //Copying every 600th frame
-        for (int i = (int) frameNum; i < frameCount; i++) {
-            BufferedImage image = null;
-            image = readBytesIntoImage(image);
-            if(i > 0) {
-                boolean isKeyFrame = keyFrameDetection.getKeyFrames(previousImage, image);
-                if(isKeyFrame) {
-                    KeyFrameClass keyFrame = new KeyFrameClass();
-                    keyFrame.image = copyImage(image);
-                    File outputfile = new File(counter + ".jpg");
-                    try {
-                        ImageIO.write(image, "jpg", outputfile);
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
-                    }
-                    counter++;
-                    keyFrame.distance = keyFrameDetection.distance;
-                    keyFrame.position = i;
-                    sceneCuts.add(keyFrame);
-                }
-            }
-            previousImage = copyImage(image);
-        }
-        Collections.sort(sceneCuts, new Comparator<KeyFrameClass>() {
-            public int compare(KeyFrameClass class1, KeyFrameClass class2) {
-                if (class1.distance > class2.distance) return -1;
-                else return 1;
-            }
-        });
-
-//        if(sceneCuts.size() >= 10) {
-//            sceneCuts.subList(0, 10).clear();;
-//        }
-
-        Collections.sort(sceneCuts, new Comparator<KeyFrameClass>() {
-            public int compare(KeyFrameClass class1, KeyFrameClass class2) {
-                if (class1.position < class2.position) return -1;
-                else return 1;
-            }
-        });
-
-        //Force interval-ed frames, instead of just taking first 10 produced from keyframeDetection
-        chooseFramesByInterval();
-
-        for(KeyFrameClass keyframe: sceneCuts) {
-            if(keyframe.inTapestry) {
-                selectedFrames.add(copyImage(keyframe.image));
-                selectedFrameNums.add(keyframe.position);
-            }
-        }
-//        for(int i = 0; i < sceneCuts.size() && i < 10; i++) {
-//            selectedFrames.add(copyImage(sceneCuts.get(i).image));
-//            selectedFrameNums.add(sceneCuts.get(i).position);
-//        }
-
-
-        BufferedImage joinedFrames = joinFrames(selectedFrames);
-
-        //Scaling the image
-        BufferedImage scaledTapestry = new BufferedImage((width*10)/4, height/4, BufferedImage.TYPE_INT_RGB);
-        Graphics g = scaledTapestry.createGraphics();
-        g.drawImage(joinedFrames, 0, 0, (width*10)/4, height/4, null);
-        g.dispose();
-
-        tapestryImg = scaledTapestry;
-
-
-        //Saving tapestry image to local destination
-        try {
-            // retrieve image
-            File outputfile = new File("saved.png");
-            ImageIO.write(joinedFrames, "png", outputfile);
-
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-
-
-        //Saving frame selection data
-        PrintStream ps = null;
-
-        try {
-            ps = new PrintStream("frames.txt");
-        } catch (FileNotFoundException e) {
-            e.printStackTrace();
-        }
-
-        for(int i=0; i < selectedFrameNums.size(); i++) {
-            ps.println(selectedFrameNums.get(i));
-        }
-
-
-
-    }
-
-    /* Need to create a second pass filter that will force our tapestry to at least choose 1 image that best represents every 20 seconds. */
-    private void chooseFramesByInterval() {
-        //Interval = every (x) seconds, we need to pick a frame to represent in the tapestry
-        int interval = (int)(fps*5*60)/tapestryFrameCount;
-        for(int i=0; i < tapestryFrameCount; i++) {
-
-            for (KeyFrameClass keyframe : sceneCuts){
-                if (i*interval <= keyframe.position && keyframe.position < (i+1)*interval) {
-                    keyframe.inTapestry = true;
-                    break;
-                }
-            }
-        }
-
-
-    }
-
-
-
-    private BufferedImage joinFrames(ArrayList<BufferedImage> selectedFrames) {
-        int offset = 0;
-
-        //create a new buffer and draw two image into the new image
-        BufferedImage newImage = new BufferedImage(width*10,height, BufferedImage.TYPE_INT_RGB);
-        Graphics2D g2 = newImage.createGraphics();
-
-        Color oldColor = g2.getColor();
-        //fill background
-        g2.setPaint(Color.WHITE);
-        g2.fillRect(0, 0, width*10, height);
-
-        g2.setColor(oldColor);
-
-        g2.drawImage(selectedFrames.get(0), null, 0, 0);
-        //draw images
-        for(int i=1; i< selectedFrames.size(); i++) {
-            g2.drawImage(selectedFrames.get(i), null, width*i + offset, 0);
-        }
-        g2.dispose();
-        return newImage;
-
-    }
-
-    private BufferedImage readBytesIntoImage(BufferedImage image) {
-        frameNum++;
-        image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
-        try {
-            int offset = 0;
-            int numRead = 0;
-
-            while (offset < bytes.length &&
-                    (numRead = original_video.read(bytes, offset, bytes.length - offset)) >= 0) {
-                offset += numRead;
-            }
-
-            int ind = 0;
-            for (int y = 0; y < height; y++) {
-
-                for (int x = 0; x < width; x++) {
-
-                    byte a = 0;
-                    byte r = bytes[ind];
-                    byte g = bytes[ind + height * width];
-                    byte b = bytes[ind + height * width * 2];
-
-
-                    int pix = 0xff000000 | ((r & 0xff) << 16) | ((g & 0xff) << 8) | (b & 0xff);
-                    //int pix = ((a << 24) + (r << 16) + (g << 8) + b);
-                    image.setRGB(x, y, pix);
-                    ind++;
-
-                }
-            }
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
-//        System.out.println(frameNum);
-        return image;
-    }
 
     private void readBytes() {
         frameNum++;
@@ -528,13 +325,6 @@ public class PlayVideo implements Runnable{
     }
 
 
-
-    private static BufferedImage copyImage(BufferedImage source) {
-        ColorModel cm = source.getColorModel();
-        boolean isAlphaPremultiplied = cm.isAlphaPremultiplied();
-        WritableRaster raster = source.copyData(null);
-        return new BufferedImage(cm, raster, isAlphaPremultiplied, null);
-    }
 
 
 }
