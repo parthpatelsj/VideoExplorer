@@ -118,21 +118,23 @@ public class PlayVideo implements Runnable{
                     int y = e.getY();
                     System.out.println(x+","+y);
                     int seekPos=0;
-                    if (x < 88) { seekPos= width*height*3*(600*0); frameNum = 600*0;  } else
-                        if (x < 88*2) { seekPos = width*height*3*(600*1); frameNum = 600*1; } else
-                            if (x < 88*3) { seekPos = width*height*3*(600*2); frameNum = 600*2;} else
-                                if (x < 88*4) { seekPos = width*height*3*(600*3); frameNum = 600*3;} else
-                                if (x < 88*5) { seekPos = width*height*3*(600*4); frameNum = 600*4;} else
-                                if (x < 88*6) { seekPos = width*height*3*(600*5); frameNum = 600*5;} else
-                                if (x < 88*7) { seekPos = width*height*3*(600*6); frameNum = 600*6;} else
-                                if (x < 88*8) { seekPos = width*height*3*(600*7); frameNum = 600*7;} else
-                                if (x < 88*9) { seekPos = width*height*3*(600*8); frameNum = 600*8;} else
-                                if (x < 88*10) { seekPos = width*height*3*(600*9); frameNum = 600*9;} else
+                    if (x < 88) { frameNum = selectedFrameNums.get(0);  } else
+                        if (x < 88*2) { frameNum = selectedFrameNums.get(1); } else
+                            if (x < 88*3) { frameNum = selectedFrameNums.get(2); } else
+                                if (x < 88*4) { frameNum = selectedFrameNums.get(3);} else
+                                if (x < 88*5) { frameNum = selectedFrameNums.get(4);} else
+                                if (x < 88*6) { frameNum = selectedFrameNums.get(5);} else
+                                if (x < 88*7) { frameNum = selectedFrameNums.get(6);} else
+                                if (x < 88*8) { frameNum = selectedFrameNums.get(7);} else
+                                if (x < 88*9) { frameNum = selectedFrameNums.get(8);} else
+                                if (x < 88*10) { frameNum = selectedFrameNums.get(9);} else
                     System.out.println(seekPos);
 
 
                     double audiofps = playSound.frameRate()/fps;
                     try {
+                        seekPos = width*height*3*((int)frameNum);
+                        System.out.println("Frame Num: " + frameNum + "Seek Position: " + seekPos);
                         original_video.seek(seekPos);
                         playSound.setSound((int)(audiofps*frameNum));
                         frame.repaint();
@@ -343,9 +345,9 @@ public class PlayVideo implements Runnable{
             }
         });
 
-        if(sceneCuts.size() >= 10) {
-            sceneCuts.subList(0, 10).clear();;
-        }
+//        if(sceneCuts.size() >= 10) {
+//            sceneCuts.subList(0, 10).clear();;
+//        }
 
         Collections.sort(sceneCuts, new Comparator<KeyFrameClass>() {
             public int compare(KeyFrameClass class1, KeyFrameClass class2) {
@@ -355,7 +357,7 @@ public class PlayVideo implements Runnable{
         });
 
         for(int i = 0; i < sceneCuts.size() && i < 10; i++) {
-            selectedFrames.add(sceneCuts.get(i).image);
+            selectedFrames.add(copyImage(sceneCuts.get(i).image));
             selectedFrameNums.add(sceneCuts.get(i).position);
         }
         BufferedImage joinedFrames = joinFrames(selectedFrames);
