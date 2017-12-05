@@ -13,6 +13,8 @@ class KeyframeInfo{
     double distance;
     int position;
     boolean inTapestry = false;
+    boolean botTapestry = false;
+    int energy;
 }
 
 
@@ -26,14 +28,21 @@ public class Tapestry {
     private byte[] bytes;
 
     BufferedImage tapestryImg;
+    BufferedImage bot_tapestryImg;
     private int width;
     private int height;
-    private long frameNum;
 
     ArrayList<BufferedImage> selectedFrames = new ArrayList<>();
     ArrayList<Integer> selectedFrameNums = new ArrayList<>();
 
-    ArrayList<KeyframeInfo> sceneCuts = new ArrayList<>();
+    ArrayList<BufferedImage> bottom_selectedFrames = new ArrayList<>();
+    ArrayList<Integer> bottom_selectedFrameNums = new ArrayList<>();
+
+    ArrayList<KeyframeInfo> topTapestry = new ArrayList<>();
+    ArrayList<KeyframeInfo> bottomTapestry = new ArrayList<>();
+
+    ArrayList<ArrayList<KeyframeInfo>> newSelectedFrames = new ArrayList<ArrayList<KeyframeInfo>>();
+
 
 
     /* Constructor - Tapestry */
@@ -66,34 +75,45 @@ public class Tapestry {
 
     private void createTapestry(long frameCount) {
         //Will be using scene change detection (in KeyFrameDetection class)
-        sceneChangeDetection(frameCount);
+        sceneChangeByInterval(frameCount);
 
         //Force interval-ed frames, instead of just taking first 10 produced from keyframeDetection
-        chooseFramesByInterval();
+        newChooseFramesByInterval();
 
 
-        System.out.println("Total options for scene cuts: " + sceneCuts.size());
-        //Going through selected frames, and seeing if they will be loaded into the tapestry
-        for(KeyframeInfo keyframe: sceneCuts) {
-            if(keyframe.inTapestry) {
-                selectedFrames.add(copyImage(keyframe.image));
-                selectedFrameNums.add(keyframe.position);
-            }
+
+        for(KeyframeInfo f: topTapestry) {
+            selectedFrames.add(copyImage(f.image));
+            selectedFrameNums.add(f.position);
         }
 
-        System.out.println("Total size of tapestry frames = " + selectedFrames.size());
+        for(KeyframeInfo f: bottomTapestry) {
+            bottom_selectedFrames.add(copyImage(f.image));
+            bottom_selectedFrameNums.add(f.position);
+        }
+
+
+
+        System.out.println("Total size of top tapestry frames = " + selectedFrames.size());
+        System.out.println("Total size of bottom tapestry frames = " + bottom_selectedFrames.size());
+
 
 
         //Join all of the frames into one image
         BufferedImage joinedFrames = joinFrames(selectedFrames);
+        BufferedImage bot_joinedFrames = joinFrames(bottom_selectedFrames);
+
+        BufferedImage combined_tapestry = mergeTapestry(joinedFrames, bot_joinedFrames);
 
         //Scaling the image to fit on the screen
-        BufferedImage scaledTapestry = new BufferedImage((width*10)/4, height/4, BufferedImage.TYPE_INT_RGB);
+        BufferedImage scaledTapestry = new BufferedImage((width*10)/4, (height*2)/4, BufferedImage.TYPE_INT_RGB);
         Graphics g = scaledTapestry.createGraphics();
-        g.drawImage(joinedFrames, 0, 0, (width*10)/4, height/4, null);
+        g.drawImage(combined_tapestry, 0, 0, (width*10)/4, (height*2)/4, null);
         g.dispose();
 
+
         tapestryImg = scaledTapestry;
+
 
 
         /*DEBUG STUFF */
@@ -101,7 +121,7 @@ public class Tapestry {
         try {
             // retrieve image
             File outputfile = new File("saved.png");
-            ImageIO.write(joinedFrames, "png", outputfile);
+            ImageIO.write(tapestryImg, "png", outputfile);
 
         } catch (IOException e) {
             e.printStackTrace();
@@ -125,76 +145,125 @@ public class Tapestry {
     }
 
     static int counter = 0;
-    private void sceneChangeDetection(long frameCount) {
+
+    private void sceneChangeByInterval(long frameCount) {
         KeyFrameDetection keyFrameDetection = new KeyFrameDetection();
+        BufferedImage prevImg = null;
 
-        BufferedImage previousImage = null;
-        for(int i = (int) frameNum; i < frameCount; i++) {
-            BufferedImage image = null;
-            image = readBytesIntoImage(image);
+        /* Going through frames in intervals of 600. */
+        for(int col=0; col < 10; col++) {
 
-            if(i > 0) {
-                boolean isKeyFrame = keyFrameDetection.getKeyFrames(previousImage, image);
-                if(isKeyFrame) {
-                    KeyframeInfo keyFrame = new KeyframeInfo();
-                    keyFrame.image = copyImage(image);
-                    File outputfile = new File(counter + ".jpg");
-                    try {
-                        ImageIO.write(image, "jpg", outputfile);
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
+            ArrayList<KeyframeInfo> intervalFrames = new ArrayList<KeyframeInfo>();
+
+            for (int frame = col*600; frame < (col+1)*600; frame++) {
+
+                BufferedImage currImg = null;
+                currImg = readBytesIntoImage(currImg);
+
+                if(frame > 0) {
+                    WidthSeamCarver energyGen = new WidthSeamCarver();
+                    boolean isKeyFrame = keyFrameDetection.getKeyFrames(prevImg, currImg);
+
+                    //Select the frame if its a scene change, or 200th, or 500th frame of its interval.
+                    // This ensure there is at least 2 frames
+                    if(isKeyFrame || (frame == (col*600)+200) || frame == (col*600)+500) {
+                        KeyframeInfo keyFrame = new KeyframeInfo();
+                        keyFrame.image = copyImage(currImg);
+
+
+                        //Save scene cuts for debug purposes
+                        File outputfile = new File("scene-cuts/" + col + "_" + counter + ".jpg");
+                        try {
+                            ImageIO.write(currImg, "jpg", outputfile);
+                        } catch (IOException e) {
+                            // TODO Auto-generated catch block
+                            e.printStackTrace();
+                        }
+
+
+                        counter++;
+
+                        keyFrame.distance = keyFrameDetection.distance;
+                        keyFrame.position = frame;
+
+                        keyFrame.energy = energyGen.getMaxVariance(keyFrame.image);
+
+                        //New - interval-ed way
+                        intervalFrames.add(keyFrame);
+
                     }
-                    counter++;
-
-                    keyFrame.distance = keyFrameDetection.distance;
-                    keyFrame.position = i;
-                    sceneCuts.add(keyFrame);
                 }
+                prevImg = copyImage(currImg);
             }
-            previousImage = copyImage(image);
+
+            Collections.sort(intervalFrames, new Comparator<KeyframeInfo>() {
+                public int compare(KeyframeInfo class1, KeyframeInfo class2) {
+                    if (class1.distance > class2.distance) return -1;
+                    else return 1;
+                }
+            });
+
+
+            Collections.sort(intervalFrames, new Comparator<KeyframeInfo>() {
+                public int compare(KeyframeInfo class1, KeyframeInfo class2) {
+                    if (class1.position < class2.position) return -1;
+                    else return 1;
+                }
+            });
+
+            newSelectedFrames.add(intervalFrames);
         }
-
-        Collections.sort(sceneCuts, new Comparator<KeyframeInfo>() {
-            public int compare(KeyframeInfo class1, KeyframeInfo class2) {
-                if (class1.distance > class2.distance) return -1;
-                else return 1;
-            }
-        });
-
-
-        Collections.sort(sceneCuts, new Comparator<KeyframeInfo>() {
-            public int compare(KeyframeInfo class1, KeyframeInfo class2) {
-                if (class1.position < class2.position) return -1;
-                else return 1;
-            }
-        });
-
     }
 
 
-    /* Need to create a second pass filter that will force our tapestry to at least choose 1 image that best represents every 20 seconds. */
-    private void chooseFramesByInterval() {
-        //Interval = every (x) seconds, we need to pick a frame to represent in the tapestry
-        int interval = (int)(fps*5*60)/tapestryFrameCount;
-        for(int i=0; i < tapestryFrameCount; i++) {
-            boolean found = false;
-            for (KeyframeInfo keyframe : sceneCuts){
-                if (i*interval <= keyframe.position && keyframe.position < (i+1)*interval) {
-                    System.out.println("Frame: " + keyframe.position + " chosen!");
-                    keyframe.inTapestry = true;
-                    found = true;
-                    break;
-                }
-            }
+    private void newChooseFramesByInterval() {
+        for(ArrayList<KeyframeInfo> x: newSelectedFrames){
 
-            if(found == false) System.out.println("No frame for interval: " + i);
+//            KeyframeInfo maxKey = Collections.max(x, new Comparator<KeyframeInfo>() {
+//                public int compare(KeyframeInfo class1, KeyframeInfo class2) {
+//                    if(class1.energy < class2.energy) return -1;
+//                    if(class1.energy == class2.energy) return 0;
+//                    else return 1;
+//                }
+//            });
+
+            Collections.sort(x, new Comparator<KeyframeInfo>() {
+                public int compare(KeyframeInfo class1, KeyframeInfo class2) {
+                    if(class1.energy > class2.energy) return -1;
+                    else return 1;
+                }
+            });
+
+            topTapestry.add(x.get(0));
+            bottomTapestry.add(x.get(1));
+
+            x.get(0).inTapestry = true;
+            x.get(1).botTapestry = true;
+            System.out.println("Frame #: " + x.get(0).position + "chosen, with energy: " + x.get(0).energy);
         }
     }
 
 
 
     /* HELPER FUNCTIONS */
+
+    private BufferedImage mergeTapestry(BufferedImage top, BufferedImage bottom) {
+        BufferedImage newImage = new BufferedImage(width*10, height*2, BufferedImage.TYPE_INT_RGB);
+        Graphics2D g2 = newImage.createGraphics();
+
+        Color oldColor = g2.getColor();
+        //fill background
+        g2.setPaint(Color.WHITE);
+        g2.fillRect(0, 0, width*10, height*2);
+
+        g2.setColor(oldColor);
+
+        g2.drawImage(top, null, 0, 0);
+        g2.drawImage(bottom, null, 0, height);
+
+        g2.dispose();
+        return newImage;
+    }
 
     private BufferedImage joinFrames(ArrayList<BufferedImage> selectedFrames) {
         int offset = 0;
@@ -221,7 +290,6 @@ public class Tapestry {
     }
 
     private BufferedImage readBytesIntoImage(BufferedImage image) {
-        frameNum++;
         image = new BufferedImage(width, height, BufferedImage.TYPE_3BYTE_BGR);
         try {
             int offset = 0;

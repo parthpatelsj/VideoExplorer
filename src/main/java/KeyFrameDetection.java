@@ -22,6 +22,7 @@ import org.opencv.imgproc.Imgproc;
 public class KeyFrameDetection {
     public double distance = 0;
     public KeyFrameDetection() {
+        /* NOTE: MAKE SURE LIBRARIES ARE INSTALLED */
        // System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
         System.load("/usr/local/Cellar/opencv/3.3.1_1/share/OpenCV/java/libopencv_java331.dylib");
     }
