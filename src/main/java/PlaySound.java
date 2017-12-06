@@ -1,8 +1,8 @@
 //package org.wikijava.sound.playWave;
 
-import java.io.BufferedInputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import java.io.*;
+import java.lang.annotation.Target;
+import java.util.ArrayList;
 
 import javax.sound.sampled.*;
 import javax.sound.sampled.DataLine.Info;
@@ -30,6 +30,19 @@ public class PlaySound implements Runnable {
         this.waveStream = new BufferedInputStream(waveStream);
     }
 
+    public static void main(final String[] args) {
+        FileInputStream inputStream = null;
+        try{
+            inputStream = new FileInputStream("USCVillage.wav");
+        } catch(FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+
+        PlaySound ps = new PlaySound(inputStream);
+        ps.loudFrames();
+    }
+
     public void run() {
         try {
             this.play();
@@ -37,6 +50,106 @@ public class PlaySound implements Runnable {
             e.printStackTrace();
             return;
         }
+    }
+
+    public void loudFrames() {
+        AudioInputStream audioInputStream = null;
+
+            try {
+                audioInputStream = AudioSystem.getAudioInputStream(this.waveStream);
+            } catch (UnsupportedAudioFileException e) {
+                e.printStackTrace();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            AudioFormat myaudioFormat = audioInputStream.getFormat();
+            audioFormat = myaudioFormat;
+            Info info = new Info(SourceDataLine.class, audioFormat);
+
+            SourceDataLine dataLine = null;
+            try {
+                dataLine = (SourceDataLine) AudioSystem.getLine(info);
+                dataLine.open(audioFormat, this.EXTERNAL_BUFFER_SIZE);
+            } catch (LineUnavailableException e1) {
+                System.err.println("Line unavailablie");
+            }
+
+
+        int bufferSize = 2048;
+
+        int sampleSize = audioFormat.getSampleSizeInBits();
+        float sampleRate = audioFormat.getSampleRate();
+        int channels =  audioFormat.getChannels();
+        boolean isBig = audioFormat.isBigEndian();
+        System.out.println("----Audio details---");
+        System.out.println("Sample Size: " + sampleSize + ", Sample Rate: " + sampleRate + ", Channels: " + channels + ", Big Endian? " + isBig);
+
+        int readBytes = 0;
+        byte[] audioBuffer = new byte[bufferSize];
+        float[] samples = new float[bufferSize / 2];
+
+
+
+        dataLine.start();
+
+        double afps = this.frameRate()/20;
+        ArrayList<Integer> loudFrames = new ArrayList<Integer>();
+
+        try {
+                while (readBytes != -1) {
+                    readBytes = audioInputStream.read(audioBuffer, 0,
+                                                    audioBuffer.length);
+
+                    for(int i=0, s = 0 ; i < readBytes;) {
+                        int sample = 0;
+
+                        sample |= audioBuffer[i++] & 0xFF;
+                        sample |= audioBuffer[i++] << 8;
+
+                        samples[s++] = sample / 32768f;
+//                        samples[s++] = sample;
+                    }
+
+                    float rms = 0f;
+                    for(float sample: samples) {
+                        rms += sample * sample;
+                    }
+
+                    rms = (float)Math.sqrt(rms/ samples.length);
+
+                    System.out.println("rms: " + Math.abs(rms));
+
+                    if(Math.abs(rms) > 0.17) {
+                        loudFrames.add(dataLine.getFramePosition()/(int)afps);
+                        System.out.println("That was loud!");
+                    }
+                    System.out.println("frame# " + (dataLine.getFramePosition())/afps);
+
+                    if (readBytes >= 0) {
+                        dataLine.write(audioBuffer, 0, readBytes);
+                    }
+                }
+        } catch (IOException e1) {
+            System.err.println("Play wave exception");
+        } finally {
+            dataLine.drain();
+            dataLine.close();
+        }
+
+        //Saving frame selection data
+        PrintStream ps = null;
+
+        try {
+            ps = new PrintStream("audioFrames.txt");
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        for(int i=0; i < loudFrames.size(); i++) {
+            ps.println(loudFrames.get(i));
+        }
+
     }
 
     public void play() throws PlayWaveException {
@@ -57,6 +170,10 @@ public class PlaySound implements Runnable {
 
             // Obtain the information about the AudioInputStream
             audioFormat = audioInputStream.getFormat();
+
+
+
+
 //        Info info = new Info(SourceDataLine.class, audioFormat);
 
             // opens the audio channel

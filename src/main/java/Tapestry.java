@@ -13,6 +13,7 @@ class KeyframeInfo{
     int position;
     boolean inTapestry = false;
     boolean botTapestry = false;
+    boolean loud = false;
     int energy;
 }
 
@@ -39,6 +40,8 @@ public class Tapestry {
 
     ArrayList<KeyframeInfo> topTapestry = new ArrayList<>();
     ArrayList<KeyframeInfo> bottomTapestry = new ArrayList<>();
+
+    Set<Integer> loudFrames = new HashSet<>();
 
     ArrayList<ArrayList<KeyframeInfo>> newSelectedFrames = new ArrayList<ArrayList<KeyframeInfo>>();
 
@@ -100,8 +103,25 @@ public class Tapestry {
         }
     }
 
+    public void getLoudAudioFrames() {
+        //Reading frame Numbers
+        Scanner s = null;
+        try {
+            s = new Scanner(new File("audioFrames.txt"));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+        while(s.hasNext()) {
+            loudFrames.add(Integer.parseInt(s.next()));
+        }
+        s.close();
+    }
+
 
     private void createTapestry(long frameCount) {
+        //Get the loud Audio Frames
+        getLoudAudioFrames();
+
         //Will be using scene change detection (in KeyFrameDetection class)
         sceneChangeByInterval(frameCount);
 
@@ -223,6 +243,27 @@ public class Tapestry {
                         intervalFrames.add(keyFrame);
 
                     }
+
+                    //Also add any frames with loud audio
+                    else if(loudFrames.contains(frame)) {
+                        KeyframeInfo audioKeyFrame = new KeyframeInfo();
+                        audioKeyFrame.image = copyImage(currImg);
+
+                        //Save scenes cuts (audio) for debug purposes
+                        File outputfile = new File("audio-cuts/" + col + "_" + counter + ".jpg");
+                        try {
+                            ImageIO.write(currImg, "jpg", outputfile);
+                        } catch (IOException e) {
+                            e.printStackTrace();
+                        }
+
+                        counter++;
+
+                        audioKeyFrame.position = frame;
+                        audioKeyFrame.loud = true;
+
+                        intervalFrames.add(audioKeyFrame);
+                    }
                 }
                 prevImg = copyImage(currImg);
             }
@@ -265,11 +306,52 @@ public class Tapestry {
                 }
             });
 
-            topTapestry.add(x.get(0));
-            bottomTapestry.add(x.get(x.size()-1));
 
-            x.get(0).inTapestry = true;
-            x.get(x.size()-1).botTapestry = true;
+            KeyframeInfo top_frame;
+            KeyframeInfo bot_frame;
+
+
+            //Highest energy is set to be top, lowest energy on bottom
+            top_frame = x.get(0);
+            bot_frame = x.get(x.size()-1);
+
+
+
+            //See if there is a loud frame, if so, add it to bottom!
+            for(KeyframeInfo f: x) {
+                if(f.loud) {
+                    bot_frame = f;
+                    break;
+                }
+            }
+
+
+
+            //If frames are 100 frames apart, try changing bottom frame to something that satisfies it.
+            if((Math.abs(bot_frame.position - top_frame.position)) < 100) {
+                for(KeyframeInfo f: x) {
+                    if(Math.abs(f.position - top_frame.position) >= 100) {
+                        bot_frame = f;
+                        break;
+                    }
+                }
+            }
+
+            //If position is off switch them
+            if(top_frame.position > bot_frame.position) {
+                KeyframeInfo temp = top_frame;
+                top_frame = bot_frame;
+                bot_frame = temp;
+            }
+
+
+            topTapestry.add(top_frame);
+            bottomTapestry.add(bot_frame);
+
+
+
+            top_frame.inTapestry = true;
+            bot_frame.botTapestry = true;
             System.out.println("Frame #: " + x.get(0).position + "chosen, with energy: " + x.get(0).energy);
         }
     }
