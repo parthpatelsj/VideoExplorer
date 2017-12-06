@@ -226,7 +226,7 @@ public class PlayVideo implements Runnable{
             });
 
             JButton playButton = new JButton();
-//            JButton stopButton = new JButton();
+            JButton stopButton = new JButton();
             JButton pauseButton = new JButton();
 
             playButton.addActionListener(new ActionListener() {
@@ -252,22 +252,27 @@ public class PlayVideo implements Runnable{
                 }
             });
 
-//            stopButton.addActionListener(new ActionListener() {
-//
-//                @Override
-//                public void actionPerformed(ActionEvent e) {
-//                    // TODO Auto-generated method stub
-//                    isVideoStopped = false;
-//                    playSound.stopSound();
-////                    playSound.dataLine.stop();
-//                }
-//            });
+            stopButton.addActionListener(new ActionListener() {
+
+                @Override
+                public void actionPerformed(ActionEvent e) {
+                    // TODO Auto-generated method stub
+                    try {
+                        original_video.seek(1);
+                    } catch (IOException e1) {
+                        e1.printStackTrace();
+                    }
+//                    isVideoPlaying = false;
+                    playSound.stopSound();
+//                    playSound.dataLine.stop();
+                }
+            });
 
 
 
             playButton.setText("Play");
             pauseButton.setText("Pause");
-//            stopButton.setText("Stop");
+            stopButton.setText("Stop");
             JPanel panel = new JPanel();
             panel.add(playButton);
             panel.add(pauseButton);
@@ -293,9 +298,8 @@ public class PlayVideo implements Runnable{
             frame.getContentPane().add(panel, c);
 
 //            c.fill = GridBagConstraints.HORIZONTAL;
-////            c.anchor = GridBagConstraints.CENTER;
-//            //c.weightx = 0.25;
-////            c.insets = insets;
+//            c.anchor = GridBagConstraints.CENTER;
+//            c.weightx = 0.25;
 //            c.gridx = 2;
 //            c.gridy = 2;
 //             frame.getContentPane().add(stopButton, c);

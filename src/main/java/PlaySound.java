@@ -250,11 +250,15 @@ public class PlaySound implements Runnable {
     }
 
     public void stopSound() {
-        isAudioStopped = true;
+        clip.stop();
+        clip.flush();
+        clip.setFramePosition(0);
+
     }
 
     public void setSound(int frames) {
         clip.stop();
+        clip.flush();
         clip.setFramePosition(frames);
         clip.start();
 
