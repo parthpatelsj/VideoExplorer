@@ -14,9 +14,12 @@
  * limitations under the License.
  */
 
+import java.awt.*;
 import java.awt.image.BufferedImage;
 import java.io.File;
 import java.io.IOException;
+import java.util.Set;
+
 import javafx.scene.paint.Color;
 import javax.imageio.ImageIO;
 
@@ -59,8 +62,16 @@ public class WidthSeamCarver {
 //
 //    }
 
-    public int getMaxVariance(BufferedImage imgIn) {
-        int[][] minVarianceValue = getMinVarianceMatrix(imgIn);
+    public BufferedImage widthSeamCarve(BufferedImage imgIn, int numPixelsToRemove) {
+        FaceDetection fd = new FaceDetection();
+        Set<Point> facePoints = fd.getFacePoints(imgIn);
+        imgIn = rescaleImageInSteps(facePoints, imgIn, numPixelsToRemove, 30);
+
+        return imgIn;
+    }
+
+    public int getMaxVariance(Set<Point> faces, BufferedImage imgIn) {
+        int[][] minVarianceValue = getMinVarianceMatrix(faces, imgIn);
         int maxVariance=0;
         for(int x=0;x<minVarianceValue.length;x++){
             for(int y=0;y<minVarianceValue[0].length;y++){
@@ -78,9 +89,12 @@ public class WidthSeamCarver {
      * Return the cost of a step from one pixel to another
      * This cost is calculated as a weighted average between the gradient magnitude of the to pixel ad the difference of the from and to colors
      */
-    private static int stepCost(BufferedImage imgIn, int x1, int y1, int x2, int y2) {
+    private static int stepCost(Set<Point> faces, BufferedImage imgIn, int x1, int y1, int x2, int y2) {
         int to=imgIn.getRGB(x1, y1);
         int from=imgIn.getRGB(x2, y2);
+
+        if (faces.contains(new Point(x1, x2))) return 900;
+        if (faces.contains(new Point(x2, y2))) return 900;
 
         return ((x1<imgIn.getWidth()-2?colorRGBDifference(to,imgIn.getRGB(x1+1, y1)):0)
                 +(x1>0?colorRGBDifference(to,imgIn.getRGB(x1-1, y1)):0)
@@ -107,7 +121,7 @@ public class WidthSeamCarver {
      * @param imgIn the BufferedImage to use
      * @return the cumulative cost matrix
      */
-    public static int[][] getMinVarianceMatrix(BufferedImage imgIn) {
+    public static int[][] getMinVarianceMatrix(Set<Point> faces, BufferedImage imgIn) {
         int[][] minVarianceValue = new int[imgIn.getWidth()][imgIn.getHeight()];
         //first row, is all 0s
         for(int x=0;x<imgIn.getWidth();x++){
@@ -116,14 +130,14 @@ public class WidthSeamCarver {
         int widthMaxIndex=imgIn.getWidth()-1;
         for(int y=imgIn.getHeight()-2;y>0;y--){
             //the two pixels on the edges are different
-            minVarianceValue[widthMaxIndex][y]=Math.min(stepCost(imgIn,widthMaxIndex,y+1,widthMaxIndex,y)+minVarianceValue[widthMaxIndex][y+1], stepCost(imgIn,widthMaxIndex-1,y+1,widthMaxIndex,y)+minVarianceValue[widthMaxIndex-1][y+1]);
+            minVarianceValue[widthMaxIndex][y]=Math.min(stepCost(faces, imgIn,widthMaxIndex,y+1,widthMaxIndex,y)+minVarianceValue[widthMaxIndex][y+1], stepCost(faces, imgIn,widthMaxIndex-1,y+1,widthMaxIndex,y)+minVarianceValue[widthMaxIndex-1][y+1]);
             for(int x=1;x<imgIn.getWidth()-1;x++){
-                minVarianceValue[x][y]=Math.min(stepCost(imgIn,x,y+1,x,y)+minVarianceValue[x][y+1],
-                        Math.min(stepCost(imgIn,x-1,y+1,x,y)+minVarianceValue[x-1][y+1],
-                                stepCost(imgIn,x+1,y+1,x,y)+minVarianceValue[x+1][y+1])
+                minVarianceValue[x][y]=Math.min(stepCost(faces, imgIn,x,y+1,x,y)+minVarianceValue[x][y+1],
+                        Math.min(stepCost(faces, imgIn,x-1,y+1,x,y)+minVarianceValue[x-1][y+1],
+                                stepCost(faces, imgIn,x+1,y+1,x,y)+minVarianceValue[x+1][y+1])
                 );
             }
-            minVarianceValue[0][y]=Math.min(stepCost(imgIn,0,y+1,0,y)+minVarianceValue[0][y+1], stepCost(imgIn,1,y+1,0,y)+minVarianceValue[1][y+1]);
+            minVarianceValue[0][y]=Math.min(stepCost(faces, imgIn,0,y+1,0,y)+minVarianceValue[0][y+1], stepCost(faces, imgIn,1,y+1,0,y)+minVarianceValue[1][y+1]);
         }
         return minVarianceValue;
     }
@@ -208,7 +222,7 @@ public class WidthSeamCarver {
      * Pixels with the coordinates of an Integer.MAX_VALUE in minVarianceValue are removed by shifting the others on left
      *
      */
-    private static BufferedImage rescaleImage(BufferedImage imgIn, int[][] minVarianceValue,int numPixelsToRemove) {
+    private static BufferedImage rescaleImage(Set<Point> allFaces, BufferedImage imgIn, int[][] minVarianceValue,int numPixelsToRemove) {
         BufferedImage imgResc = new BufferedImage(imgIn.getWidth()-numPixelsToRemove,imgIn.getHeight(),BufferedImage.TYPE_INT_RGB);
         for(int y=0;y<minVarianceValue[0].length;y++){
             int survivorIndex=0;
@@ -231,10 +245,10 @@ public class WidthSeamCarver {
      * @param numPixelsToRemove how much to reduce the width, in pixels
      * @return the rescaled RGB image, with a reduced width
      */
-    public static BufferedImage rescaleImage(BufferedImage imgIn, int numPixelsToRemove) {
-        int[][] minVarianceValue = getMinVarianceMatrix(imgIn);
+    public static BufferedImage rescaleImage(Set<Point> faces, BufferedImage imgIn, int numPixelsToRemove) {
+        int[][] minVarianceValue = getMinVarianceMatrix(faces, imgIn);
         markBestPaths(minVarianceValue,numPixelsToRemove);
-        return rescaleImage(imgIn,minVarianceValue,numPixelsToRemove);
+        return rescaleImage(faces, imgIn,minVarianceValue,numPixelsToRemove);
     }
 
     /**
@@ -247,11 +261,11 @@ public class WidthSeamCarver {
      * @param stepSize how many pixels remove in each step, smaller is more precise but slower, for most uses 10 is a good value
      * @return the rescaled RGB image, with a reduced width
      */
-    public static BufferedImage rescaleImageInSteps(BufferedImage imgIn, int numPixelsToRemove,int stepSize) {
+    public static BufferedImage rescaleImageInSteps(Set<Point> faces, BufferedImage imgIn, int numPixelsToRemove,int stepSize) {
         for(int a=1;a<numPixelsToRemove;a+=stepSize){
-            imgIn = rescaleImage(imgIn,stepSize);
+            imgIn = rescaleImage(faces, imgIn,stepSize);
         }
-        imgIn = rescaleImage(imgIn,numPixelsToRemove%stepSize);
+        imgIn = rescaleImage(faces, imgIn,numPixelsToRemove%stepSize);
         return imgIn;
     }
 }

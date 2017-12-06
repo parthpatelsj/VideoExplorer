@@ -20,7 +20,7 @@ public class AVPlayer {
 		String render = args[2];
 
 		Boolean renderTapestry = false;
-		if(render.equals("render")) renderTapestry = true;
+		if(render.equals("import")) renderTapestry = true;
 
 		try{
 			inputStream = new FileInputStream(audioFile);
@@ -43,7 +43,11 @@ public class AVPlayer {
 			Thread soundThread  = new Thread(playSound);
 			PlayVideo playVideo = new PlayVideo(videoFile, audioFile, playSound, soundThread);
 
-			playVideo.renderTapestry();
+			playVideo.importTapestry("seamedTapestry.png", "frames.txt");
+
+			Thread videoThread = new Thread(playVideo);
+			soundThread.start();
+			videoThread.start();
 
 		}
 

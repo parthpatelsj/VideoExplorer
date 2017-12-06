@@ -4,9 +4,8 @@ import java.awt.image.BufferedImage;
 import java.awt.image.ColorModel;
 import java.awt.image.WritableRaster;
 import java.io.*;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Comparator;
+import java.util.*;
+
 
 class KeyframeInfo{
     BufferedImage image;
@@ -69,7 +68,36 @@ public class Tapestry {
         long frameCount = file.length()/len;
         bytes = new byte[(int) len];
         createTapestry(frameCount);
+        seamCarveTapestry();
 
+    }
+
+    public void seamCarveTapestry() {
+//        ImageRetarget ir = new ImageRetarget(new GradientMagnitudeFunction());
+//        BufferedImage result = ir.retarget(tapestryImg, 880, 160);
+
+        SeamCarver seamCarve = new SeamCarver();
+        BufferedImage carved = seamCarve.runSeamCarve(tapestryImg);
+
+
+
+        //        Scaling the image to fit on the screen
+        BufferedImage scaledTapestry = new BufferedImage((int)(1710/1.2), (int)(128/1.024), BufferedImage.TYPE_INT_RGB);
+        Graphics g = scaledTapestry.createGraphics();
+        g.drawImage(carved, 0, 0, (int)(1710/1.2), (int)(128/1.024), null);
+        g.dispose();
+
+//        WidthSeamCarver wseam = new WidthSeamCarver();
+//        BufferedImage finalResult = wseam.widthSeamCarve(carved, 285);
+
+        tapestryImg = scaledTapestry;
+
+        //Debugging
+        try {
+            ImageIO.write(scaledTapestry, "png", new File("seamedTapestry.png"));
+        } catch (Exception e) {
+            System.out.println("Failed to write output image!");
+        }
     }
 
 
@@ -101,16 +129,17 @@ public class Tapestry {
 
         //Join all of the frames into one image
         BufferedImage joinedFrames = joinFrames(selectedFrames);
+        joinedFrames = joinedFrames.getSubimage(0, 45, width*10, height-45);
         BufferedImage bot_joinedFrames = joinFrames(bottom_selectedFrames);
+        bot_joinedFrames = bot_joinedFrames.getSubimage(0, 45, width*10, height-45);
 
         BufferedImage combined_tapestry = mergeTapestry(joinedFrames, bot_joinedFrames);
 
-        //Scaling the image to fit on the screen
-        BufferedImage scaledTapestry = new BufferedImage((width*10)/4, (height*2)/4, BufferedImage.TYPE_INT_RGB);
+//        Scaling the image to fit on the screen
+        BufferedImage scaledTapestry = new BufferedImage((width*10)/2, ((height-90)*2)/2, BufferedImage.TYPE_INT_RGB);
         Graphics g = scaledTapestry.createGraphics();
-        g.drawImage(combined_tapestry, 0, 0, (width*10)/4, (height*2)/4, null);
+        g.drawImage(combined_tapestry, 0, 0, (width*10)/2, ((height-90)*2)/2, null);
         g.dispose();
-
 
         tapestryImg = scaledTapestry;
 
@@ -139,6 +168,7 @@ public class Tapestry {
 
         for(int i=0; i < selectedFrameNums.size(); i++) {
             ps.println(selectedFrameNums.get(i));
+            ps.println(bottom_selectedFrameNums.get(i));
         }
 
 
@@ -149,6 +179,7 @@ public class Tapestry {
     private void sceneChangeByInterval(long frameCount) {
         KeyFrameDetection keyFrameDetection = new KeyFrameDetection();
         BufferedImage prevImg = null;
+        Set<Point> emptySet = new HashSet<>();
 
         /* Going through frames in intervals of 600. */
         for(int col=0; col < 10; col++) {
@@ -186,7 +217,7 @@ public class Tapestry {
                         keyFrame.distance = keyFrameDetection.distance;
                         keyFrame.position = frame;
 
-                        keyFrame.energy = energyGen.getMaxVariance(keyFrame.image);
+                        keyFrame.energy = energyGen.getMaxVariance(emptySet, keyFrame.image);
 
                         //New - interval-ed way
                         intervalFrames.add(keyFrame);
@@ -235,10 +266,10 @@ public class Tapestry {
             });
 
             topTapestry.add(x.get(0));
-            bottomTapestry.add(x.get(1));
+            bottomTapestry.add(x.get(x.size()-1));
 
             x.get(0).inTapestry = true;
-            x.get(1).botTapestry = true;
+            x.get(x.size()-1).botTapestry = true;
             System.out.println("Frame #: " + x.get(0).position + "chosen, with energy: " + x.get(0).energy);
         }
     }
@@ -248,18 +279,19 @@ public class Tapestry {
     /* HELPER FUNCTIONS */
 
     private BufferedImage mergeTapestry(BufferedImage top, BufferedImage bottom) {
-        BufferedImage newImage = new BufferedImage(width*10, height*2, BufferedImage.TYPE_INT_RGB);
+
+        BufferedImage newImage = new BufferedImage(width*10, (height-90)*2, BufferedImage.TYPE_INT_RGB);
         Graphics2D g2 = newImage.createGraphics();
 
         Color oldColor = g2.getColor();
         //fill background
         g2.setPaint(Color.WHITE);
-        g2.fillRect(0, 0, width*10, height*2);
+        g2.fillRect(0, 0, width*10, (height-90)*2);
 
         g2.setColor(oldColor);
 
         g2.drawImage(top, null, 0, 0);
-        g2.drawImage(bottom, null, 0, height);
+        g2.drawImage(bottom, null, 0, height-90);
 
         g2.dispose();
         return newImage;

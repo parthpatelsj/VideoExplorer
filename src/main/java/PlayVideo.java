@@ -7,6 +7,8 @@ import java.awt.event.MouseListener;
 import java.awt.image.BufferedImage;
 import java.io.*;
 import java.util.ArrayList;
+import java.util.Scanner;
+import javax.imageio.ImageIO;
 import javax.swing.ImageIcon;
 import javax.swing.JButton;
 import javax.swing.JFrame;
@@ -34,6 +36,7 @@ public class PlayVideo implements Runnable{
     private int height = 288;
     private final double fps = 20; //Frames per second
     ArrayList<Integer> selectedFrameNums = new ArrayList<Integer>();
+    ArrayList<Integer> bottomSelectedFrameNums = new ArrayList<Integer>();
     RandomAccessFile original_video;
     Thread soundThread;
 
@@ -57,12 +60,45 @@ public class PlayVideo implements Runnable{
 
     public void renderTapestry() {
 
+
         Tapestry generateTapestry = new Tapestry(width, height, videoFile);
         generateTapestry.renderTapestry();
 
         tapestryImg = generateTapestry.tapestryImg;
         selectedFrameNums = generateTapestry.selectedFrameNums;
+        bottomSelectedFrameNums = generateTapestry.bottom_selectedFrameNums;
 
+    }
+
+    public void importTapestry(String tapestry, String filepath) {
+
+        //Setting tapestry
+        BufferedImage image = null;
+        try {
+            image = ImageIO.read(new File(tapestry));
+        } catch (IOException e) {
+            System.err.println("Can't open");
+        }
+
+        //Reading frame Numbers
+        Scanner s = null;
+        try {
+            s = new Scanner(new File(filepath));
+        } catch (FileNotFoundException e) {
+            e.printStackTrace();
+        }
+
+        ArrayList<Integer> topFrames = new ArrayList<Integer>();
+        ArrayList<Integer> bottomFrames = new ArrayList<Integer>();
+        while(s.hasNext()) {
+            topFrames.add(Integer.parseInt(s.next()));
+            bottomFrames.add(Integer.parseInt(s.next()));
+        }
+        s.close();
+
+        tapestryImg = image;
+        selectedFrameNums = topFrames;
+        bottomSelectedFrameNums = bottomFrames;
 
     }
 
@@ -72,6 +108,7 @@ public class PlayVideo implements Runnable{
         frameNum = 0;
 
         img = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
+        //tapestryImg = new BufferedImage(width, height, BufferedImage.TYPE_INT_RGB);
 
         try {
             File file = new File(videoFile);
@@ -92,23 +129,70 @@ public class PlayVideo implements Runnable{
             lbIm1 = new JLabel(new ImageIcon(img));
             tapestry = new JLabel(new ImageIcon(tapestryImg));
 
+
+            final int fPP = 142;
+
+            //The bottom frame
+            final int bottom = 130;
             tapestry.addMouseListener(new MouseListener() {
                 public void mouseClicked(MouseEvent e) {
                     int x = e.getX();
                     int y = e.getY();
                     System.out.println(x+","+y);
                     int seekPos=0;
-                    if (x < 88) { frameNum = selectedFrameNums.get(0);  } else
-                        if (x < 88*2) { frameNum = selectedFrameNums.get(1); } else
-                            if (x < 88*3) { frameNum = selectedFrameNums.get(2); } else
-                                if (x < 88*4) { frameNum = selectedFrameNums.get(3);} else
-                                if (x < 88*5) { frameNum = selectedFrameNums.get(4);} else
-                                if (x < 88*6) { frameNum = selectedFrameNums.get(5);} else
-                                if (x < 88*7) { frameNum = selectedFrameNums.get(6);} else
-                                if (x < 88*8) { frameNum = selectedFrameNums.get(7);} else
-                                if (x < 88*9) { frameNum = selectedFrameNums.get(8);} else
-                                if (x < 88*10) { frameNum = selectedFrameNums.get(9);} else
-                    System.out.println(seekPos);
+                    if (x < fPP) {
+                        if (y > bottom) {
+                            frameNum = bottomSelectedFrameNums.get(0);
+                        }
+                        else frameNum = selectedFrameNums.get(0);
+
+                    } else if (x < fPP*2) {
+                        if (y > bottom) {
+                            frameNum = bottomSelectedFrameNums.get(1);
+                        }
+                        else frameNum = selectedFrameNums.get(1);
+                    } else if (x < fPP*3) {
+                        if (y > bottom) {
+                            frameNum = bottomSelectedFrameNums.get(2);
+                        }
+                        else frameNum = selectedFrameNums.get(2);
+                    } else if (x < fPP*4) {
+                        if (y > bottom) {
+                            frameNum = bottomSelectedFrameNums.get(3);
+                        }
+                        else frameNum = selectedFrameNums.get(3);
+                    } else if (x < fPP*5) {
+                        if (y > bottom) {
+                            frameNum = bottomSelectedFrameNums.get(4);
+                        }
+                        else frameNum = selectedFrameNums.get(4);
+                    } else if (x < fPP*6) {
+                        if (y > bottom) {
+                            frameNum = bottomSelectedFrameNums.get(5);
+                        }
+                        else frameNum = selectedFrameNums.get(5);
+                    } else if (x < fPP*7) {
+                        if (y > bottom) {
+                            frameNum = bottomSelectedFrameNums.get(6);
+                        }
+                        else frameNum = selectedFrameNums.get(6);
+                    } else if (x < fPP*8) {
+                        if (y > bottom) {
+                            frameNum = bottomSelectedFrameNums.get(7);
+                        }
+                        else frameNum = selectedFrameNums.get(7);
+                    } else if (x < fPP*9) {
+                        if (y > bottom) {
+                            frameNum = bottomSelectedFrameNums.get(8);
+                        }
+                        else frameNum = selectedFrameNums.get(8);
+                    }
+                    else if (x < fPP*10) {
+                        if (y > bottom) {
+                            frameNum = bottomSelectedFrameNums.get(9);
+                        }
+                        else frameNum = selectedFrameNums.get(9);
+                    } else System.err.println("No frame for position you clicked on!");
 
 
                     double audiofps = playSound.frameRate()/fps;
@@ -142,7 +226,7 @@ public class PlayVideo implements Runnable{
             });
 
             JButton playButton = new JButton();
-            JButton stopButton = new JButton();
+//            JButton stopButton = new JButton();
             JButton pauseButton = new JButton();
 
             playButton.addActionListener(new ActionListener() {
@@ -168,26 +252,26 @@ public class PlayVideo implements Runnable{
                 }
             });
 
-            stopButton.addActionListener(new ActionListener() {
-
-                @Override
-                public void actionPerformed(ActionEvent e) {
-                    // TODO Auto-generated method stub
-                    isVideoStopped = false;
-                    playSound.stopSound();
-//                    playSound.dataLine.stop();
-                }
-            });
+//            stopButton.addActionListener(new ActionListener() {
+//
+//                @Override
+//                public void actionPerformed(ActionEvent e) {
+//                    // TODO Auto-generated method stub
+//                    isVideoStopped = false;
+//                    playSound.stopSound();
+////                    playSound.dataLine.stop();
+//                }
+//            });
 
 
 
             playButton.setText("Play");
             pauseButton.setText("Pause");
-            stopButton.setText("Stop");
+//            stopButton.setText("Stop");
             JPanel panel = new JPanel();
             panel.add(playButton);
             panel.add(pauseButton);
-            panel.add(stopButton);
+//            panel.add(stopButton);
 
             GridBagConstraints c = new GridBagConstraints();
             c.fill = GridBagConstraints.HORIZONTAL;
@@ -208,13 +292,13 @@ public class PlayVideo implements Runnable{
             c.gridy = 2;
             frame.getContentPane().add(panel, c);
 
-            c.fill = GridBagConstraints.HORIZONTAL;
-//            c.anchor = GridBagConstraints.CENTER;
-            //c.weightx = 0.25;
-//            c.insets = insets;
-            c.gridx = 2;
-            c.gridy = 2;
-            // frame.getContentPane().add(stopButton, c);
+//            c.fill = GridBagConstraints.HORIZONTAL;
+////            c.anchor = GridBagConstraints.CENTER;
+//            //c.weightx = 0.25;
+////            c.insets = insets;
+//            c.gridx = 2;
+//            c.gridy = 2;
+//             frame.getContentPane().add(stopButton, c);
 
             c.fill = GridBagConstraints.HORIZONTAL;
             c.gridx = 0;
