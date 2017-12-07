@@ -23,10 +23,16 @@ public class KeyFrameDetection {
     public double distance = 0;
     public KeyFrameDetection() {
         /* NOTE: MAKE SURE LIBRARIES ARE INSTALLED */
-       // System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
-        System.load("/usr/local/Cellar/opencv/3.3.1_1/share/OpenCV/java/libopencv_java331.dylib");
+        System.loadLibrary(Core.NATIVE_LIBRARY_NAME);
+//        System.load("/usr/local/Cellar/opencv/3.3.1_1/share/OpenCV/java/libopencv_java331.dylib");
     }
 
+    /**
+     * Converting BufferedImage type provided by Java library to the mat image type which contains matrix of pixels of OpenCV
+     * @param bufImg
+     * @return
+     * @throws IOException
+     */
     private Mat bufferedImageToMat(BufferedImage bufImg) throws IOException {
         BufferedImage bi = new BufferedImage(bufImg.getWidth(), bufImg.getHeight(), BufferedImage.TYPE_3BYTE_BGR);
         bi.getGraphics().drawImage(bufImg, 0, 0, null);
@@ -37,6 +43,11 @@ public class KeyFrameDetection {
         return mat;
     }
 
+    /**
+     * Gets the color histogram of the given mat image
+     * @param image
+     * @return
+     */
     @SuppressWarnings("unchecked")
     private Mat getHistogram(Mat image) {
 //		Imgproc.cvtColor(image, image, Imgproc.COLOR_BGR2HSV);
@@ -76,6 +87,9 @@ public class KeyFrameDetection {
 
 
         for (int i = 1; i < 256; i++) {
+        	/*Creating a curve from the list of points we obtain from the histogram function, consider
+        	 * every two adjacent points and draw a line between them
+        	 */
             Point p1 = new Point(bin_w * (i - 1), hist_h - Math.round(r_hist.get(i - 1, 0)[0]));
             Point p2 = new Point(bin_w * (i), hist_h - Math.round(r_hist.get(i, 0)[0]));
             Imgproc.line(histImage, p1, p2, new Scalar(255, 0, 0), 2, 8, 0);
@@ -91,7 +105,12 @@ public class KeyFrameDetection {
         }
         return histImage;
     }
-
+    /**
+     * Identifies scenes transitions, scene changes by comparing the histograms
+     * @param prevFrame
+     * @param currFrame
+     * @return
+     */
     private boolean identifySceneTransitions(BufferedImage prevFrame, BufferedImage currFrame){
         ArrayList<BufferedImage> keyFrames = new ArrayList<>();
         Mat prevImage = null, currImage = null;
@@ -108,7 +127,12 @@ public class KeyFrameDetection {
         }
         return false;
     }
-
+    /**
+     * public method to be called to get the key frames
+     * @param prevFrame
+     * @param currFrame
+     * @return
+     */
     public boolean getKeyFrames(BufferedImage prevFrame, BufferedImage currFrame){
         return identifySceneTransitions(prevFrame, currFrame);
     }
